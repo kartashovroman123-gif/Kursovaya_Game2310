@@ -1,9 +1,11 @@
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class characterController : MonoBehaviour
 {
     [SerializeField] int speed = 20;
     private Rigidbody2D rb;
+    private Vector2 direction;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -12,11 +14,12 @@ public class characterController : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         float dirX = Input.GetAxisRaw("Horizontal");
         float dirY = Input.GetAxisRaw("Vertical");
-
-        rb.transform.position += new Vector3(dirX, dirY, 0) * speed * Time.deltaTime;
+    
+        direction = new Vector2(dirX, dirY) * speed * Time.deltaTime;
+        rb.position += direction * speed * Time.deltaTime;
     }
 }
