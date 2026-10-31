@@ -1,0 +1,1 @@
+public enum RoomType { Hub, Combat, Shop, Upgrade, Item, Boss }

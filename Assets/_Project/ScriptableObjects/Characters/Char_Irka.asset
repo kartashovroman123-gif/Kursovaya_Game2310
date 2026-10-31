@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   displayName: Irka
   description: 
-  icon: {fileID: 8211628435803740865, guid: cc3a62f72eccb704faf69b152de8174d, type: 3}
+  icon: {fileID: 21300000, guid: 28d7d0c6221d2d843a63eec5c02f61d8, type: 3}
   prefab: {fileID: 7027092673089241816, guid: 0b1bfff2a08dc1a47968ab93bea81f62, type: 3}
   maxHealth: 100
   moveSpeed: 5
