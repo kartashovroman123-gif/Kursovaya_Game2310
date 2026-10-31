@@ -888,7 +888,7 @@ MonoBehaviour:
   cardPrefab: {fileID: 567416320648913229, guid: 5260ed72e8bf1534a9b1785c97d8124c, type: 3}
   infoText: {fileID: 1556237999}
   startButton: {fileID: 1857062864}
-  gameSceneName: WurmplSandbox
+  gameSceneName: Room
 --- !u!4 &1884134482
 Transform:
   m_ObjectHideFlags: 0
