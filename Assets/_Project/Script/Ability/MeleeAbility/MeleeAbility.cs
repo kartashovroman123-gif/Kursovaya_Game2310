@@ -2,13 +2,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-// Слабая атака когтями: удар в один из 4 углов. Дуга захватывает угол и обе соседние стороны.
-// Урон ПОКА НЕ НАНОСИТСЯ: найденные цели только пишутся в Console.
-// Когда у друга будет здоровье, править нужно только метод DealDamage.
-[CreateAssetMenu(fileName = "ClawSlash", menuName = "Game/Abilities/Claw Slash")]
-public class ClawSlash : AbilityData
+// ОБЩИЙ ШАБЛОН ЛЮБОГО УДАРА БЛИЖНЕГО БОЯ (средний уровень дерева: AbilityData -> MeleeAbility -> конкретный приём).
+// Здесь всё, что одинаково у когтей, рапиры и молота: вспышка, поиск целей, фильтры, нанесение урона,
+// стоп-кадр и толчок камеры. Потомки меняют только то, чем отличаются, через виртуальные методы:
+//   IsInZone      - попала ли цель в зону удара (дуга, круг, узкая полоса...)
+//   ComputeDamage - базовый урон этого удара
+//   DamageFor     - урон по конкретной цели (например, край молота бьёт сильнее рукояти)
+//   DealDamage    - единственное место, куда друг подключает здоровье
+//   OnTargetHit   - что делать с каждой пораженной целью (отбрасывание и т.п.)
+//   OnHitFeel     - стоп-кадр и толчок камеры, если хоть кого-то задели
+public abstract class MeleeAbility : AbilityData
 {
-    [Header("Дуга удара")]
+    [Header("Зона удара")]
     [Tooltip("Ширина дуги в градусах. 90 = ровно угол, 150 = угол и почти целиком обе стороны")]
     [Range(10f, 360f)] public float arcAngle = 150f;
     [Tooltip("Враги ближе этого расстояния задеваются с любой стороны (чтобы не промахнуться по тем, кто вплотную)")]
@@ -32,10 +37,10 @@ public class ClawSlash : AbilityData
     public override void Execute(AbilityContext ctx)
     {
         SpawnEffect(ctx);
+        ctx.damage = ComputeDamage(ctx);
 
         Collider2D[] found = Physics2D.OverlapCircleAll(ctx.origin, ctx.range, targetMask);
         var already = new HashSet<GameObject>();   // чтобы одна цель не получила удар дважды
-        float half = arcAngle * 0.5f;
 
         foreach (Collider2D c in found)
         {
@@ -45,36 +50,65 @@ public class ClawSlash : AbilityData
             if (ctx.owner != null && target == ctx.owner.gameObject) continue;    // не бьём себя
             if (already.Contains(target)) continue;
 
-            // попадает ли цель в дугу: угол между направлением удара и ближайшей точкой цели
+            // попала ли цель в зону: смотрим на ближайшую к герою точку цели
             Vector2 closest = c.ClosestPoint(ctx.origin);
             Vector2 toTarget = closest - ctx.origin;
             bool close = toTarget.magnitude <= innerRadius;
-            if (!close && Vector2.Angle(ctx.direction, toTarget) > half) continue;
+            if (!close && !IsInZone(ctx, toTarget)) continue;
 
             already.Add(target);
-            DealDamage(target, ctx);
+            DealDamage(target, ctx, DamageFor(ctx, c, toTarget));
+            OnTargetHit(target, ctx, c);
         }
 
-        if (already.Count > 0)
-        {
-            float m = ctx.comboFinisher ? finisherFeelMultiplier : 1f;
-            HitStop.Do(hitStop * m);
-            CameraShake.Kick(ctx.direction * hitKick * m);
-        }
+        if (already.Count > 0) OnHitFeel(ctx);
 
-        DrawDebugArc(ctx);
+        DrawDebugZone(ctx);
+    }
+
+    // ---------- Что переопределяют потомки ----------
+
+    // По умолчанию зона - дуга шириной arcAngle вокруг направления удара
+    protected virtual bool IsInZone(AbilityContext ctx, Vector2 toTarget)
+    {
+        return Vector2.Angle(ctx.direction, toTarget) <= arcAngle * 0.5f;
+    }
+
+    // По умолчанию - урон из ассета (с учётом предметов, которые уже посчитал PlayerAbilities)
+    protected virtual float ComputeDamage(AbilityContext ctx)
+    {
+        return ctx.damage;
+    }
+
+    // Урон по конкретной цели. По умолчанию одинаковый для всех
+    protected virtual float DamageFor(AbilityContext ctx, Collider2D target, Vector2 toTarget)
+    {
+        return ctx.damage;
     }
 
     // ЕДИНСТВЕННОЕ место, куда друг подключает урон
-    protected virtual void DealDamage(GameObject target, AbilityContext ctx)
+    protected virtual void DealDamage(GameObject target, AbilityContext ctx, float damage)
     {
-        Debug.Log($"[{displayName}] попал по '{target.name}' (урон {ctx.damage:0.#} пока не наносится)");
+        Debug.Log($"[{displayName}] попал по '{target.name}' (урон {damage:0.#} пока не наносится)");
 
-        // TODO (здоровье): var hp = target.GetComponent<IDamageable>(); if (hp != null) hp.TakeDamage(ctx.damage);
+        // TODO (здоровье): var hp = target.GetComponent<IDamageable>(); if (hp != null) hp.TakeDamage(damage);
         // TODO (ультимейт): ctx.owner.RegisterHit();   когда появится заряд ультимейта
     }
 
-    void SpawnEffect(AbilityContext ctx)
+    // Дополнительное действие с каждой пораженной целью (по умолчанию - ничего)
+    protected virtual void OnTargetHit(GameObject target, AbilityContext ctx, Collider2D col) { }
+
+    // Стоп-кадр и толчок камеры, если удар кого-то задел
+    protected virtual void OnHitFeel(AbilityContext ctx)
+    {
+        float m = ctx.comboFinisher ? finisherFeelMultiplier : 1f;
+        HitStop.Do(hitStop * m);
+        CameraShake.Kick(ctx.direction * hitKick * m);
+    }
+
+    // ---------- Общее ----------
+
+    protected virtual void SpawnEffect(AbilityContext ctx)
     {
         if (effectPrefab == null) return;
         SlashEffect fx = Object.Instantiate(effectPrefab, ctx.origin, Quaternion.identity);
@@ -87,7 +121,7 @@ public class ClawSlash : AbilityData
     }
 
     // Красные линии границ дуги в окне Scene (видны 0.3 с)
-    void DrawDebugArc(AbilityContext ctx)
+    protected virtual void DrawDebugZone(AbilityContext ctx)
     {
         float half = arcAngle * 0.5f;
         Vector3 a = Quaternion.Euler(0f, 0f, half) * (Vector3)ctx.direction * ctx.range;

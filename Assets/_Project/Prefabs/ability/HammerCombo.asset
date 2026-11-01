@@ -1,0 +1,92 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6f42c60d58d457488a170ade32596c0, type: 3}
+  m_Name: HammerCombo
+  m_EditorClassIdentifier: Assembly-CSharp::HammerCombo
+  displayName: 
+  description: 
+  icon: {fileID: 0}
+  damage: 10
+  cooldown: 0.5
+  range: 1
+  windup: 0.1
+  recovery: 0.15
+  animationTrigger: 
+  arcAngle: 150
+  innerRadius: 0.4
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  effectPrefab: {fileID: 0}
+  finisherEffectSize: 1.25
+  hitStop: 0.05
+  hitKick: 0.1
+  finisherFeelMultiplier: 1.6
+  stage1:
+    radius: 1.6
+    arcAngle: 110
+    edgeWidth: 0.5
+    edgeDamage: 30
+    handleDamage: 12
+    knockback: 7
+    windup: 0.18
+    recovery: 0.25
+    lungeDistance: 0.4
+    cameraKick: 0.15
+    hitStop: 0.07
+    cooldown: 5
+    clawHitsToNext: 3
+    window: 5
+  stage2:
+    radius: 1.9
+    arcAngle: 180
+    edgeWidth: 0.55
+    edgeDamage: 40
+    handleDamage: 15
+    knockback: 8
+    windup: 0.22
+    recovery: 0.3
+    lungeDistance: 0.5
+    cameraKick: 0.2
+    hitStop: 0.08
+    cooldown: 8
+    clawHitsToNext: 5
+    window: 8
+  stage3:
+    radius: 1.8
+    arcAngle: 360
+    edgeWidth: 0.6
+    edgeDamage: 60
+    handleDamage: 25
+    knockback: 10
+    windup: 0.12
+    recovery: 0.35
+    lungeDistance: 0
+    cameraKick: 0.3
+    hitStop: 0.12
+    cooldown: 8
+    clawHitsToNext: 0
+    window: 0
+  unlockedTimeout: 5
+  maxLeapDistance: 3.5
+  leapTime: 0.3
+  landingInvulnerability: 0.1
+  firePrefab: {fileID: 7528398000811997609, guid: ff41b9c34e870cf48b93456a4e103b1f, type: 3}
+  fireCount: 16
+  aimFill: {r: 0.55, g: 0.25, b: 0.9, a: 0.3}
+  aimEdge: {r: 0.7, g: 0.35, b: 1, a: 0.45}
+  aimOutline: {r: 0.85, g: 0.6, b: 1, a: 0.95}
+  cooldownAlpha: 0.35
+  flashFill: {r: 0.85, g: 0.6, b: 1, a: 0.35}
+  flashEdge: {r: 1, g: 0.85, b: 1, a: 0.7}
+  flashTime: 0.25
+  zoneSortingOrder: 1

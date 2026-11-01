@@ -9,7 +9,9 @@ public class AbilityContext
     public AbilitySlot slot;
     public bool fromItem;        // приём запущен активным предметом
     public Vector2 origin;       // откуда
-    public Vector2 direction;    // куда (нормализовано)
+    public Vector2 direction;    // куда (нормализовано; для ударов это одна из 4 диагоналей)
+    public Vector2 aim;          // точное направление на курсор (нормализовано), для рывков и снарядов
+    public Vector2 moveDirection; // куда герой идёт сейчас (или куда смотрит, если стоит)
     public float damage;
     public float range;
 
@@ -20,7 +22,7 @@ public class AbilityContext
 }
 
 // Базовый шаблон любого приёма. Конкретное поведение задают наследники:
-// MeleeAbility (удар по дуге), DashAbility (рывок), AreaAbility (удар по области).
+// MeleeAbility (удары ближнего боя) и DashAbility (рывки), у каждого свои потомки.
 public abstract class AbilityData : ScriptableObject
 {
     [Header("Описание")]

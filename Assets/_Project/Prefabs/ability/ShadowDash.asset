@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44447a644cf840a43946c02dc5d260bd, type: 3}
+  m_Name: ShadowDash
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowDash
+  displayName: 
+  description: 
+  icon: {fileID: 0}
+  damage: 10
+  cooldown: 0.7
+  range: 2.2
+  windup: 0.1
+  recovery: 0.15
+  animationTrigger: 
+  dashTime: 0.16
+  direction: 0
+  invulnerableTime: 0.25
+  flamePrefab: {fileID: 7528398000811997609, guid: ff41b9c34e870cf48b93456a4e103b1f, type: 3}
+  flameInterval: 0.025
+  flameOffset: {x: 0, y: 0.15}
+  flameAfterDash: 0.04
