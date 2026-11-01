@@ -16,6 +16,8 @@ GameObject:
   - component: {fileID: 1534428362687958308}
   - component: {fileID: -6135952363246301006}
   - component: {fileID: -5889476119033228271}
+  - component: {fileID: 5742592923552075678}
+  - component: {fileID: 8260108251871994903}
   m_Layer: 0
   m_Name: Hero_template
   m_TagString: Player
@@ -211,10 +213,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   data: {fileID: 0}
-  maxHealth: 0
-  currentHealth: 0
-  moveSpeed: 0
-  damage: 0
+  activeItem: {fileID: 0}
+  passiveItem: {fileID: 0}
+  upgrades: []
+  ultimateCharge: 0
+  debugItem: {fileID: 0}
+  debugUpgrade: {fileID: 0}
 --- !u!114 &-5889476119033228271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -227,6 +231,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b75927fda55e16d4aa6ded6edcb10701, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
+--- !u!114 &5742592923552075678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175370656087914219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 943fc6c04f6d8d44cb686c48c022c106, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAbilities
+  lightAttackKey: 323
+  chestHeight: 0.6
+  faceHoldTime: 0.15
+--- !u!114 &8260108251871994903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175370656087914219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1421125502c32d04ea304644cd603a17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AttackPose
 --- !u!1 &7644618548152859302
 GameObject:
   m_ObjectHideFlags: 0
