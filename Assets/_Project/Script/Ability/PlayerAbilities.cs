@@ -20,6 +20,17 @@ public class PlayerAbilities : MonoBehaviour
     [Tooltip("Клик во время удара запоминается на столько секунд и срабатывает сразу, как только можно")]
     public float inputBuffer = 0.2f;
 
+    [Tooltip("Кнопка приёма передвижения (рывок). Работает, когда в Char Data назначен приём Movement")]
+    public KeyCode movementKey = KeyCode.LeftShift;
+    [Tooltip("Рывок можно нажать во время удара: удар прерывается (как в Cult of the Lamb)")]
+    public bool dashCancelsAttack = true;
+
+    [Header("Рывок: усиления (меняют предметы и баффы во время забега)")]
+    [Tooltip("Множитель длины рывка: 1 = как в ассете, 1.5 = на 50% длиннее")]
+    public float dashDistanceMultiplier = 1f;
+    [Tooltip("Сколько секунд неуязвимости добавить к рывку сверх значения в ассете")]
+    public float dashInvulnerabilityBonus = 0f;
+
     [Header("Точка удара")]
     [Tooltip("На сколько клеток выше ног «грудь»: от неё считаются направление и дуга")]
     public float chestHeight = 0.6f;
@@ -59,6 +70,14 @@ public class PlayerAbilities : MonoBehaviour
     float busyUntil;
     float faceUntil;
     float bufferedUntil;
+    float movementCooldownLeft;
+    float dashUntil;
+    float dashStart;
+    float invulnerableUntil;
+    Vector2 lastPos;
+    SpriteRenderer sr;
+    FramesByFacing currentPose;   // кадры текущего действия (тяжёлая атака и т.п.), null = обычная атака
+    bool dashPose = true;         // показывать ли кадры рывка (у прыжка молота свои кадры)
     int comboStep = -1;
 
     bool externalLock;   // управление выключил RoomManager (переход между комнатами)
@@ -81,11 +100,34 @@ public class PlayerAbilities : MonoBehaviour
     public float AttackProgress => Mathf.InverseLerp(attackStart, busyUntil, Time.time);   // 0..1
     public Vector2 ChestPosition => (Vector2)transform.position + Vector2.up * chestHeight;
 
+    // Для тяжёлой атаки и других приёмов
+    public event System.Action LightAttackSwung;                      // каждый взмах когтями
+    public bool LightAttackBlocked { get; set; }                       // например, пока целишься молотом
+    public bool IsBusy => Time.time < busyUntil || Time.time < dashUntil;
+    public bool ControlLocked => externalLock;                         // переход между комнатами
+    public FramesByFacing CurrentPose => IsAttackAnimating ? currentPose : null;
+    public bool ShowDashPose => IsDashing && dashPose;
+
+    // Рывок и неуязвимость
+    public bool IsDashing => Time.time < dashUntil;                                         // AttackPose: кадры рывка
+    public float DashProgress => Mathf.InverseLerp(dashStart, dashUntil, Time.time);       // 0..1
+    // ДЛЯ ДРУГА (здоровье): в начале TakeDamage написать  if (abilities.IsInvulnerable) return;
+    public bool IsInvulnerable => Time.time < invulnerableUntil;
+    public Vector2 MoveVelocity { get; private set; }                                       // реальная скорость героя
+
+    // Сделать героя неуязвимым на seconds секунд (не сокращает уже идущую неуязвимость)
+    public void GrantInvulnerability(float seconds)
+    {
+        if (seconds > 0f) invulnerableUntil = Mathf.Max(invulnerableUntil, Time.time + seconds);
+    }
+
     void Awake()
     {
         stats = GetComponent<PlayerStats>();
         rb = GetComponent<Rigidbody2D>();
         mover = GetComponent<characterController>();
+        sr = GetComponent<SpriteRenderer>();
+        if (rb != null) lastPos = rb.position;
     }
 
     // Вызывает RoomManager вместо прямого включения/выключения скрипта движения
@@ -99,9 +141,10 @@ public class PlayerAbilities : MonoBehaviour
     void Update()
     {
         if (lightCooldownLeft > 0f) lightCooldownLeft -= Time.deltaTime;
+        if (movementCooldownLeft > 0f) movementCooldownLeft -= Time.deltaTime;
 
-        // удар закончился - возвращаем ходьбу
-        if (attackLock && Time.time >= busyUntil)
+        // удар или рывок закончился - возвращаем ходьбу
+        if (attackLock && Time.time >= busyUntil && Time.time >= dashUntil)
         {
             attackLock = false;
             ApplyMoverState();
@@ -111,6 +154,9 @@ public class PlayerAbilities : MonoBehaviour
         if (externalLock) return;                                        // переход между комнатами
         if (mover != null && !mover.enabled && !attackLock) return;      // движение выключил кто-то другой
 
+        if (Input.GetKeyDown(movementKey)) TryMovement();
+
+        if (LightAttackBlocked) { bufferedUntil = 0f; return; }
         if (Input.GetKeyDown(lightAttackKey)) bufferedUntil = Time.time + inputBuffer;
         if (Input.GetKey(lightAttackKey) || Time.time < bufferedUntil) TryLightAttack();
     }
@@ -120,9 +166,10 @@ public class PlayerAbilities : MonoBehaviour
         if (stats == null || stats.data == null) return;
         AbilityData ability = stats.data.lightAttack;
         if (ability == null) return;
-        if (lightCooldownLeft > 0f || Time.time < busyUntil) return;
+        if (lightCooldownLeft > 0f || Time.time < busyUntil || Time.time < dashUntil) return;
 
         bufferedUntil = 0f;
+        currentPose = null;
 
         // серия: продолжаем, если прошлый удар был недавно, иначе начинаем сначала
         int len = Mathf.Max(1, comboLength);
@@ -148,6 +195,7 @@ public class PlayerAbilities : MonoBehaviour
         }
 
         StartCoroutine(Fire(ability, aim, finisher));
+        LightAttackSwung?.Invoke();
     }
 
     // Урон/эффект срабатывает не сразу, а после замаха
@@ -166,6 +214,7 @@ public class PlayerAbilities : MonoBehaviour
             fromItem = false,
             origin = ChestPosition,    // герой мог сдвинуться за время замаха
             direction = dir,           // диагональ угла
+            aim = aim.normalized,      // точное направление на курсор
             damage = ability.damage,   // позже здесь будут учитываться предметы и усиления
             range = ability.range,
             comboStep = comboStep,
@@ -175,7 +224,90 @@ public class PlayerAbilities : MonoBehaviour
         ability.Execute(ctx);
     }
 
-    // ---------- Рывок ----------
+    // ---------- Приём передвижения (рывок) ----------
+    void TryMovement()
+    {
+        if (stats == null || stats.data == null) return;
+        AbilityData ability = stats.data.movement;
+        if (ability == null) return;
+        if (movementCooldownLeft > 0f || Time.time < dashUntil) return;
+        if (Time.time < busyUntil)
+        {
+            if (!dashCancelsAttack) return;
+            CancelAttack();          // прерываем удар ради рывка
+            attackLock = true;       // ходьба остаётся выключенной, рывок сейчас начнётся
+        }
+
+        Vector2 aim = AimDirection();
+        movementCooldownLeft = ability.cooldown;
+
+        // куда герой идёт сейчас; если стоит - куда смотрит (влево/вправо)
+        Vector2 move = MoveVelocity.sqrMagnitude > 0.25f
+            ? MoveVelocity.normalized
+            : new Vector2(sr != null && sr.flipX ? -1f : 1f, 0f);
+
+        var ctx = new AbilityContext
+        {
+            owner = stats,
+            slot = AbilitySlot.Movement,
+            origin = ChestPosition,
+            direction = aim,
+            aim = aim,
+            moveDirection = move,
+            damage = ability.damage,
+            range = ability.range
+        };
+        ability.Execute(ctx);
+    }
+
+    // Вызывает DashAbility: полёт героя в нужную сторону, на это время ходьба выключена
+    public void Dash(Vector2 dir, float distance, float time, bool showDashPose = true)
+    {
+        if (rb == null || distance <= 0f || time <= 0f) return;
+        dashPose = showDashPose;
+        lungeVelocity = dir.normalized * (distance / time);
+        lungeUntil = Time.time + time;
+        lunging = true;
+
+        dashStart = Time.time;
+        dashUntil = lungeUntil;
+        attackLock = true;
+        ApplyMoverState();
+    }
+
+    // ---------- Для других приёмов (тяжёлая атака) ----------
+
+    // Повернуть героя в сторону dir (одна из 4 поз)
+    public void FaceTowards(Vector2 dir)
+    {
+        if (Mathf.Abs(dir.x) > 0.05f) AttackSideX = dir.x > 0f ? 1 : -1;
+        if (Mathf.Abs(dir.y) > 0.05f) AttackUp = dir.y > 0f;
+        faceUntil = Mathf.Max(faceUntil, Time.time + faceHoldTime);
+    }
+
+    // Начать действие длиной duration: герой занят, стоит на месте, показывает кадры pose
+    public void BeginAction(float duration, FramesByFacing pose)
+    {
+        attackStart = Time.time;
+        busyUntil = Time.time + Mathf.Max(0.01f, duration);
+        faceUntil = busyUntil + faceHoldTime;
+        currentPose = pose;
+        bufferedUntil = 0f;
+        if (lockMovement)
+        {
+            attackLock = true;
+            ApplyMoverState();
+            StopBody();
+        }
+    }
+
+    // Запустить корутину приёма на герое. Рывок (Shift) или переход между комнатами её прервёт
+    public Coroutine RunAction(IEnumerator routine) => StartCoroutine(routine);
+
+    // Небольшой шаг вперёд при ударе
+    public void Lunge(Vector2 dir, float distance) => StartLunge(dir, distance);
+
+    // ---------- Рывок при ударе ----------
     void StartLunge(Vector2 dir, float distance)
     {
         if (rb == null || distance <= 0f || lungeTime <= 0f) return;
@@ -186,6 +318,13 @@ public class PlayerAbilities : MonoBehaviour
 
     void FixedUpdate()
     {
+        // реальная скорость героя (нужна рывку, чтобы лететь туда, куда идёшь)
+        if (rb != null)
+        {
+            MoveVelocity = (rb.position - lastPos) / Time.fixedDeltaTime;
+            lastPos = rb.position;
+        }
+
         if (!lunging) return;
 
         if (Time.time >= lungeUntil)
@@ -220,7 +359,9 @@ public class PlayerAbilities : MonoBehaviour
         StopAllCoroutines();
         lunging = false;
         attackLock = false;
-        busyUntil = faceUntil = Time.time;
+        busyUntil = faceUntil = dashUntil = Time.time;
+        currentPose = null;
+        dashPose = true;
         bufferedUntil = 0f;
         comboStep = -1;
         StopBody();
