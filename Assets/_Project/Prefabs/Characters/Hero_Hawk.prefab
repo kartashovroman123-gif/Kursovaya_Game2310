@@ -10,7 +10,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 175370656087914219, guid: 3e4a2775684b41948a2bb7714cf2f882, type: 3}
       propertyPath: m_Name
-      value: Hero_template
+      value: Hero_Hawk
       objectReference: {fileID: 0}
     - target: {fileID: 3584660875584002675, guid: 3e4a2775684b41948a2bb7714cf2f882, type: 3}
       propertyPath: m_LocalPosition.x
@@ -53,7 +53,8 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 7644618548152859302, guid: 3e4a2775684b41948a2bb7714cf2f882, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3e4a2775684b41948a2bb7714cf2f882, type: 3}
