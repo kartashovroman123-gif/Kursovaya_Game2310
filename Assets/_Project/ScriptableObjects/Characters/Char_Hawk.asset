@@ -16,6 +16,25 @@ MonoBehaviour:
   description: 
   icon: {fileID: 21300000, guid: fa84e7cf6e9143743be0c4cacc1cbab4, type: 3}
   prefab: {fileID: 7778049444707637915, guid: f47258fc939de1046ac20d5a6221302c, type: 3}
-  maxHealth: 100
+  maxHealth: 6
   moveSpeed: 5
-  damage: 10
+  invulnerabilityTime: 0.6
+  lightAttack: {fileID: 11400000, guid: 42defe187cb2bbd43b072849c06fa2a4, type: 2}
+  heavyAttack: {fileID: 0}
+  ultimate: {fileID: 0}
+  movement: {fileID: 0}
+  frontAnimator: {fileID: 22100000, guid: fd215548520ab444b9daa461821bde72, type: 2}
+  backAnimator: {fileID: 22100000, guid: e60d624e0229aba4faf9f6b4acb1e191, type: 2}
+  lightAttackFront:
+  - {fileID: 21300000, guid: 2266d2fb7d43eba42ac56dd1a1273498, type: 3}
+  - {fileID: 21300000, guid: d6618382286dbf44785bf01d9bf598de, type: 3}
+  - {fileID: 21300000, guid: ca4e60a6fd2acaa49bcc2ae313053d80, type: 3}
+  lightAttackBack:
+  - {fileID: 21300000, guid: 3f2ddaa5cf3142b4abfa0001c3612e12, type: 3}
+  - {fileID: 21300000, guid: 4643b1e26540905489a721c98029973b, type: 3}
+  - {fileID: 21300000, guid: 4b381fcc504ac514bb39bf0ac7cae12a, type: 3}
+  ultimateMaxCharge: 100
+  ultimateChargePerSecond: 2
+  ultimateChargePerHit: 5
+  passive: {fileID: 0}
+  heroUpgrades: []

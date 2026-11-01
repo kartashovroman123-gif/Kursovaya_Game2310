@@ -16,6 +16,15 @@ MonoBehaviour:
   description: 
   icon: {fileID: 21300000, guid: 28d7d0c6221d2d843a63eec5c02f61d8, type: 3}
   prefab: {fileID: 7027092673089241816, guid: 0b1bfff2a08dc1a47968ab93bea81f62, type: 3}
-  maxHealth: 100
+  maxHealth: 6
   moveSpeed: 5
-  damage: 10
+  invulnerabilityTime: 0.6
+  lightAttack: {fileID: 0}
+  heavyAttack: {fileID: 0}
+  ultimate: {fileID: 0}
+  movement: {fileID: 0}
+  ultimateMaxCharge: 100
+  ultimateChargePerSecond: 2
+  ultimateChargePerHit: 5
+  passive: {fileID: 0}
+  heroUpgrades: []
