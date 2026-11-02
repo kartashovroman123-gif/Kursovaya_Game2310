@@ -34,17 +34,38 @@ public class PlayerHeavyAttack : MonoBehaviour
     float unlockedUntil;
 
     // ---------- Ввод и прицел ----------
-    bool pressed, aiming, clawsHeldAfterCancel;
+    bool pressed, aiming, canAim, clawsHeldAfterCancel;
     float pressTime, castQueuedUntil;
     HammerZone indicator;
     readonly RaycastHit2D[] castHits = new RaycastHit2D[8];
 
-    // Для интерфейса (позже): номер ступени 1..3, сколько осталось перезарядки, сколько взмахов набрано
+    float cooldownDuration;  // полная длина текущего отката (для иконки)
+
+    // ---------- Для интерфейса (иконка HammerIcon) ----------
+    // Есть ли у героя молот (у рыцаря нет - иконка прячется)
+    public bool HasHammer => Hammer != null;
+    // Номер следующей ступени: 1, 2, 3
     public int NextStageNumber => nextStage + 1;
     public float CooldownLeft => Mathf.Max(0f, cooldownUntil - Time.time);
+    public float CooldownTotal => cooldownDuration;
+    // Доля оставшегося отката: 1 = только начался, 0 = готово
+    public float CooldownFraction => cooldownDuration > 0f ? Mathf.Clamp01(CooldownLeft / cooldownDuration) : 0f;
+    public bool IsReady => Time.time >= cooldownUntil;
+    // Набор взмахов когтями для следующей ступени
+    public bool IsCountingHits => waitingFor >= 0 && Time.time <= windowUntil;
     public int ClawHits => hits;
     public int ClawHitsNeeded => hitsNeeded;
-    public bool IsReady => Time.time >= cooldownUntil;
+    // Ступень 2 или 3 открыта и ждёт; доля оставшегося до сброса времени: 1 = только открылась, 0 = сейчас сбросится
+    public bool IsStageUnlocked => nextStage > 0;
+    public float UnlockedFraction
+    {
+        get
+        {
+            HammerCombo h = Hammer;
+            float total = h != null ? Mathf.Max(0.01f, h.unlockedTimeout) : 5f;
+            return IsStageUnlocked ? Mathf.Clamp01((unlockedUntil - Time.time) / total) : 0f;
+        }
+    }
 
     HammerCombo Hammer => stats != null && stats.data != null ? stats.data.heavyAttack as HammerCombo : null;
 
@@ -92,9 +113,10 @@ public class PlayerHeavyAttack : MonoBehaviour
         {
             pressed = true;
             pressTime = Time.time;
+            canAim = IsReady;   // на откате прицел не включается (запоминаем в момент нажатия)
         }
 
-        if (pressed && !aiming && Input.GetKey(heavyKey) && Time.time - pressTime >= holdThreshold)
+        if (pressed && canAim && !aiming && Input.GetKey(heavyKey) && Time.time - pressTime >= holdThreshold)
             StartAiming();
 
         if (aiming)
@@ -114,7 +136,10 @@ public class PlayerHeavyAttack : MonoBehaviour
         {
             pressed = false;
             StopAiming();
-            castQueuedUntil = Time.time + castBuffer;   // ударить, как только будет можно
+            // долгое удержание на откате - просто ничего (иначе удар вылетел бы без прицела сразу после отката)
+            bool heldWithoutAim = !canAim && Time.time - pressTime >= holdThreshold;
+            if (!heldWithoutAim)
+                castQueuedUntil = Time.time + castBuffer;   // ударить, как только будет можно
         }
 
         if (Time.time < castQueuedUntil && TryCast(hammer)) castQueuedUntil = 0f;
@@ -157,6 +182,7 @@ public class PlayerHeavyAttack : MonoBehaviour
     {
         HammerStage st = hammer.GetStage(stage);
         cooldownUntil = Time.time + st.cooldown;
+        cooldownDuration = st.cooldown;
         nextStage = 0;
         hits = 0;
         if (stage < 2)
