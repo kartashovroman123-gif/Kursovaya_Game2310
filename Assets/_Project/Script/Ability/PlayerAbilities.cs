@@ -78,6 +78,7 @@ public class PlayerAbilities : MonoBehaviour
     SpriteRenderer sr;
     FramesByFacing currentPose;   // кадры текущего действия (тяжёлая атака и т.п.), null = обычная атака
     bool dashPose = true;         // показывать ли кадры рывка (у прыжка молота свои кадры)
+    bool actionUninterruptible;   // текущее действие нельзя прервать рывком (молот): рывок просто двигает героя
     int comboStep = -1;
 
     bool externalLock;   // управление выключил RoomManager (переход между комнатами)
@@ -104,6 +105,8 @@ public class PlayerAbilities : MonoBehaviour
     public event System.Action LightAttackSwung;                      // каждый взмах когтями
     public bool LightAttackBlocked { get; set; }                       // например, пока целишься молотом
     public bool IsBusy => Time.time < busyUntil || Time.time < dashUntil;
+    public bool IsAttackBusy => Time.time < busyUntil;                 // идёт удар (рывок не считается)
+    public float DashEndTime => dashUntil;                             // когда закончился (закончится) рывок
     public bool ControlLocked => externalLock;                         // переход между комнатами
     public FramesByFacing CurrentPose => IsAttackAnimating ? currentPose : null;
     public bool ShowDashPose => IsDashing && dashPose;
@@ -170,6 +173,7 @@ public class PlayerAbilities : MonoBehaviour
 
         bufferedUntil = 0f;
         currentPose = null;
+        actionUninterruptible = false;
 
         // серия: продолжаем, если прошлый удар был недавно, иначе начинаем сначала
         int len = Mathf.Max(1, comboLength);
@@ -231,12 +235,13 @@ public class PlayerAbilities : MonoBehaviour
         AbilityData ability = stats.data.movement;
         if (ability == null) return;
         if (movementCooldownLeft > 0f || Time.time < dashUntil) return;
-        if (Time.time < busyUntil)
+        if (Time.time < busyUntil && !actionUninterruptible)
         {
             if (!dashCancelsAttack) return;
-            CancelAttack();          // прерываем удар ради рывка
+            CancelAttack();          // прерываем удар когтями ради рывка
             attackLock = true;       // ходьба остаётся выключенной, рывок сейчас начнётся
         }
+        // если действие нельзя прервать (молот) - рывок просто сдвигает героя, удар продолжается
 
         Vector2 aim = AimDirection();
         movementCooldownLeft = ability.cooldown;
@@ -285,9 +290,11 @@ public class PlayerAbilities : MonoBehaviour
         faceUntil = Mathf.Max(faceUntil, Time.time + faceHoldTime);
     }
 
-    // Начать действие длиной duration: герой занят, стоит на месте, показывает кадры pose
-    public void BeginAction(float duration, FramesByFacing pose)
+    // Начать действие длиной duration: герой занят, стоит на месте, показывает кадры pose.
+    // uninterruptible = true: рывок не отменяет действие, а только двигает героя
+    public void BeginAction(float duration, FramesByFacing pose, bool uninterruptible = false)
     {
+        actionUninterruptible = uninterruptible;
         attackStart = Time.time;
         busyUntil = Time.time + Mathf.Max(0.01f, duration);
         faceUntil = busyUntil + faceHoldTime;
@@ -362,6 +369,7 @@ public class PlayerAbilities : MonoBehaviour
         busyUntil = faceUntil = dashUntil = Time.time;
         currentPose = null;
         dashPose = true;
+        actionUninterruptible = false;
         bufferedUntil = 0f;
         comboStep = -1;
         StopBody();

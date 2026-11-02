@@ -3,7 +3,11 @@ using UnityEngine;
 
 // Управление тяжёлой атакой молотом (ПКМ) и её ступенями.
 // Короткое нажатие - удар сразу в сторону курсора.
-// Удержание - показывается зона удара (можно ходить, нельзя бить когтями), отпустил - удар.
+// Удержание - показывается зона удара (можно ходить), отпустил - удар.
+// ЛКМ во время прицела - отменить прицел (удара не будет).
+// Выпущенный удар ничто не прерывает. Рывок (Shift) во время замаха двигает героя:
+// волна выйдет из новой точки, но в направлении, выбранном при нажатии.
+// Удар можно начать прямо во время рывка; сразу после рывка замах короче.
 // Ступени, перезарядки и счётчик взмахов когтями хранятся здесь, на герое
 // (ассет HammerCombo общий и во время игры не меняется).
 // Вешается на префаб героя рядом с PlayerAbilities. Работает, если в Char Data -> Heavy Attack стоит HammerCombo.
@@ -30,10 +34,10 @@ public class PlayerHeavyAttack : MonoBehaviour
     float unlockedUntil;
 
     // ---------- Ввод и прицел ----------
-    bool pressed, aiming;
+    bool pressed, aiming, clawsHeldAfterCancel;
     float pressTime, castQueuedUntil;
     HammerZone indicator;
-    readonly RaycastHit2D[] castHits = new RaycastHit2D[4];
+    readonly RaycastHit2D[] castHits = new RaycastHit2D[8];
 
     // Для интерфейса (позже): номер ступени 1..3, сколько осталось перезарядки, сколько взмахов набрано
     public int NextStageNumber => nextStage + 1;
@@ -68,6 +72,13 @@ public class PlayerHeavyAttack : MonoBehaviour
     {
         UpdateStages();
 
+        // после отмены прицела когти не бьют, пока ЛКМ не отпущена (тот клик был «отменой»)
+        if (clawsHeldAfterCancel && !Input.GetKey(abilities.lightAttackKey))
+        {
+            clawsHeldAfterCancel = false;
+            if (!aiming) abilities.LightAttackBlocked = false;
+        }
+
         HammerCombo hammer = Hammer;
         if (hammer == null || abilities.ControlLocked || Time.timeScale == 0f)
         {
@@ -86,7 +97,18 @@ public class PlayerHeavyAttack : MonoBehaviour
         if (pressed && !aiming && Input.GetKey(heavyKey) && Time.time - pressTime >= holdThreshold)
             StartAiming();
 
-        if (aiming) UpdateIndicator(hammer);
+        if (aiming)
+        {
+            if (Input.GetKeyDown(abilities.lightAttackKey))
+            {
+                // ЛКМ отменяет прицел: удара не будет
+                pressed = false;
+                clawsHeldAfterCancel = true;
+                StopAiming();
+                return;
+            }
+            UpdateIndicator(hammer);
+        }
 
         if (pressed && Input.GetKeyUp(heavyKey))
         {
@@ -130,7 +152,7 @@ public class PlayerHeavyAttack : MonoBehaviour
         }
     }
 
-    // Вызывается в момент удара (если удар отменили рывком - ступень не тратится)
+    // Вызывается в момент удара о землю
     void Commit(HammerCombo hammer, int stage)
     {
         HammerStage st = hammer.GetStage(stage);
@@ -162,7 +184,7 @@ public class PlayerHeavyAttack : MonoBehaviour
     void StopAiming()
     {
         aiming = false;
-        if (abilities != null) abilities.LightAttackBlocked = false;
+        if (abilities != null && !clawsHeldAfterCancel) abilities.LightAttackBlocked = false;
         if (indicator != null) indicator.Hide();
     }
 
@@ -170,65 +192,73 @@ public class PlayerHeavyAttack : MonoBehaviour
     {
         if (indicator == null) indicator = HammerZone.Create(hammer.zoneSortingOrder);
 
-        Vector2 aim = AimDirection();
+        Vector2 aim = AimDirection(hammer);
         abilities.FaceTowards(aim);                          // герой поворачивается туда, куда целится
         HammerStage st = hammer.GetStage(nextStage);
-        Vector2 center = nextStage >= 2 ? LandingPoint(hammer, out _) : abilities.ChestPosition;
+        Vector2 center = nextStage >= 2
+            ? LandingPoint(hammer, out _) + Vector2.up * hammer.groundOffset
+            : WaveOrigin(hammer);
         float alpha = IsReady ? 1f : hammer.cooldownAlpha;
-        indicator.Show(center, aim, st.radius, st.arcAngle, st.edgeWidth,
-                       hammer.aimFill, hammer.aimEdge, hammer.aimOutline, alpha);
+        indicator.Show(center, aim, st, hammer.aimFill, hammer.aimEdge, hammer.aimOutline, alpha);
     }
 
     // ---------- Удар ----------
 
     bool TryCast(HammerCombo hammer)
     {
-        if (!IsReady || abilities.IsBusy) return false;
+        if (!IsReady || abilities.IsAttackBusy) return false;   // во время рывка - можно
 
         int stage = nextStage;
-        Vector2 aim = AimDirection();
+        if (stage >= 2 && abilities.IsDashing) return false;     // прыжок - только после конца рывка (ждём в буфере)
+        Vector2 aim = AimDirection(hammer);
         abilities.FaceTowards(aim);
-        if (stage >= 2) abilities.RunAction(CastLeap(hammer, aim));
-        else abilities.RunAction(CastSwing(hammer, stage, aim));
+
+        // связка с рывком: во время рывка или сразу после - замах короче
+        bool afterDash = abilities.IsDashing || Time.time - abilities.DashEndTime <= hammer.afterDashWindow;
+        float windupMul = afterDash ? hammer.afterDashWindupMultiplier : 1f;
+
+        if (stage >= 2) abilities.RunAction(CastLeap(hammer, windupMul));
+        else abilities.RunAction(CastSwing(hammer, stage, aim, windupMul));
         return true;
     }
 
-    // Ступени 1 и 2: замах, шаг вперёд, удар вокруг героя
-    IEnumerator CastSwing(HammerCombo hammer, int stage, Vector2 aim)
+    // Ступени 1 и 2: замах, удар о землю, волна вперёд
+    IEnumerator CastSwing(HammerCombo hammer, int stage, Vector2 aim, float windupMul)
     {
         HammerStage st = hammer.GetStage(stage);
-        abilities.BeginAction(st.windup + st.recovery, stats.data.GetHeavyFrames(stage));
-        if (st.windup > 0f) yield return new WaitForSeconds(st.windup);
+        float windup = st.windup * windupMul;
+        abilities.BeginAction(windup + st.recovery, stats.data.GetHeavyFrames(stage), true);
+        if (windup > 0f) yield return new WaitForSeconds(windup);
 
-        abilities.Lunge(aim, st.lungeDistance);
+        if (!abilities.IsDashing) abilities.Lunge(aim, st.lungeDistance);   // во время рывка шаг не нужен
         CameraShake.Kick(aim * st.cameraKick);
-        hammer.Execute(MakeContext(hammer, stage, abilities.ChestPosition, aim));
+        hammer.Execute(MakeContext(stage, WaveOrigin(hammer), aim));        // из того места, где герой сейчас
         Commit(hammer, stage);
     }
 
-    // Ступень 3: прыжок в точку, удар по кругу вокруг места приземления
-    IEnumerator CastLeap(HammerCombo hammer, Vector2 aim)
+    // Ступень 3: прыжок в точку, удар о землю, волна полным кругом
+    IEnumerator CastLeap(HammerCombo hammer, float windupMul)
     {
         HammerStage st = hammer.GetStage(2);
+
         Vector2 target = LandingPoint(hammer, out Vector2 leapDir);
         float distance = Vector2.Distance(transform.position, target);
-        if (distance > 0.05f) aim = leapDir;
+        float windup = st.windup * windupMul;
 
-        abilities.BeginAction(st.windup + hammer.leapTime + st.recovery, stats.data.GetHeavyFrames(2));
-        abilities.GrantInvulnerability(st.windup + hammer.leapTime + hammer.landingInvulnerability);
-        if (st.windup > 0f) yield return new WaitForSeconds(st.windup);
+        abilities.BeginAction(windup + hammer.leapTime + st.recovery, stats.data.GetHeavyFrames(2), true);
+        abilities.GrantInvulnerability(windup + hammer.leapTime + hammer.landingInvulnerability);
+        if (windup > 0f) yield return new WaitForSeconds(windup);
 
         abilities.Dash(leapDir, distance, hammer.leapTime, false);   // полёт; стены его остановят
         yield return new WaitForSeconds(hammer.leapTime);
 
         CameraShake.Kick(Vector2.down * st.cameraKick);
-        hammer.Execute(MakeContext(hammer, 2, transform.position, aim));
+        hammer.Execute(MakeContext(2, WaveOrigin(hammer), leapDir));
         Commit(hammer, 2);
     }
 
-    AbilityContext MakeContext(HammerCombo hammer, int stage, Vector2 origin, Vector2 aim)
+    AbilityContext MakeContext(int stage, Vector2 origin, Vector2 aim)
     {
-        HammerStage st = hammer.GetStage(stage);
         return new AbilityContext
         {
             owner = stats,
@@ -236,15 +266,20 @@ public class PlayerHeavyAttack : MonoBehaviour
             origin = origin,
             direction = aim,
             aim = aim,
-            damage = st.edgeDamage,
-            range = st.radius,
+            range = 0f,
             comboStep = stage,
             comboFinisher = stage >= 2,
             effectBehind = aim.y > 0f
         };
     }
 
-    // Куда приземлится прыжок: к курсору, но не дальше maxLeapDistance и не сквозь стену
+    // Откуда идёт волна: ноги героя, чуть выше
+    Vector2 WaveOrigin(HammerCombo hammer)
+    {
+        return (Vector2)transform.position + Vector2.up * hammer.groundOffset;
+    }
+
+    // Куда приземлится прыжок (точка ног): к курсору, но не дальше maxLeapDistance и не сквозь стену
     Vector2 LandingPoint(HammerCombo hammer, out Vector2 dir)
     {
         Vector2 feet = transform.position;
@@ -256,14 +291,16 @@ public class PlayerHeavyAttack : MonoBehaviour
         {
             var filter = new ContactFilter2D { useTriggers = false };
             int n = rb.Cast(dir, filter, castHits, dist);
-            if (n > 0) dist = Mathf.Max(0f, castHits[0].distance - 0.05f);
+            for (int i = 0; i < n; i++)
+                if (MeleeAbility.IsWall(castHits[i].collider))
+                    dist = Mathf.Min(dist, Mathf.Max(0f, castHits[i].distance - 0.05f));
         }
         return feet + dir * dist;
     }
 
-    Vector2 AimDirection()
+    Vector2 AimDirection(HammerCombo hammer)
     {
-        Vector2 d = CursorWorld() - abilities.ChestPosition;
+        Vector2 d = CursorWorld() - WaveOrigin(hammer);
         return d.sqrMagnitude < 0.0001f ? abilities.AttackDirection : d.normalized;
     }
 

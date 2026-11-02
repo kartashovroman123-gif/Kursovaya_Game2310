@@ -32,12 +32,17 @@ MonoBehaviour:
   hitKick: 0.1
   finisherFeelMultiplier: 1.6
   stage1:
-    radius: 1.6
-    arcAngle: 110
-    edgeWidth: 0.5
+    shape: 0
+    length: 5
+    width: 1.3
+    innerFraction: 0
+    edgeFraction: 0.3
+    damage: 14
     edgeDamage: 30
-    handleDamage: 12
     knockback: 7
+    edgeKnockback: 8
+    steps: 7
+    waveTime: 0.35
     windup: 0.18
     recovery: 0.25
     lungeDistance: 0.4
@@ -47,12 +52,17 @@ MonoBehaviour:
     clawHitsToNext: 3
     window: 5
   stage2:
-    radius: 1.9
-    arcAngle: 180
-    edgeWidth: 0.55
+    shape: 1
+    length: 4.2
+    width: 4.4
+    innerFraction: 0.35
+    edgeFraction: 0.25
+    damage: 16
     edgeDamage: 40
-    handleDamage: 15
     knockback: 8
+    edgeKnockback: 9
+    steps: 5
+    waveTime: 0.35
     windup: 0.22
     recovery: 0.3
     lungeDistance: 0.5
@@ -62,12 +72,17 @@ MonoBehaviour:
     clawHitsToNext: 5
     window: 8
   stage3:
-    radius: 1.8
-    arcAngle: 360
-    edgeWidth: 0.6
+    shape: 2
+    length: 2.4
+    width: 0
+    innerFraction: 0
+    edgeFraction: 0.25
+    damage: 25
     edgeDamage: 60
-    handleDamage: 25
     knockback: 10
+    edgeKnockback: 11
+    steps: 4
+    waveTime: 0.3
     windup: 0.12
     recovery: 0.35
     lungeDistance: 0
@@ -77,16 +92,25 @@ MonoBehaviour:
     clawHitsToNext: 0
     window: 0
   unlockedTimeout: 5
+  groundOffset: 0.1
+  afterDashWindow: 0.35
+  afterDashWindupMultiplier: 0.5
   maxLeapDistance: 2
-  leapTime: 0.3
+  leapTime: 0.2
   landingInvulnerability: 0.1
-  firePrefab: {fileID: 7528398000811997609, guid: ff41b9c34e870cf48b93456a4e103b1f, type: 3}
+  crackPrefab: {fileID: 6126026996489818756, guid: 53396148f98a5c1448ce3cbf97b08ef2, type: 3}
+  edgeCrackPrefab: {fileID: 7399997050884109033, guid: 8e69e19b2e8ff964192ab20f8a69f1a5, type: 3}
+  eruptionPrefab: {fileID: 7546911352936586852, guid: bd40f9b18a7145747ade009936b4acc7, type: 3}
+  edgeEruptionPrefab: {fileID: 8435967875938541603, guid: 5ca780eeb76272f4ca1ae5e5bbccd1f5, type: 3}
+  dustPrefab: {fileID: 3278505530511156143, guid: 998ce174c4d743444bff0991641e4086, type: 3}
+  impactPrefab: {fileID: 2149415144707144855, guid: 8ba2bbadebce1124a896b78ca3907cad, type: 3}
+  burstSpacing: 1
+  burstJitter: 0.15
+  burstScale: 1
+  firePrefab: {fileID: 0}
   fireCount: 16
   aimFill: {r: 0.55, g: 0.25, b: 0.9, a: 0.3}
   aimEdge: {r: 0.7, g: 0.35, b: 1, a: 0.45}
   aimOutline: {r: 0.85, g: 0.6, b: 1, a: 0.95}
   cooldownAlpha: 0.35
-  flashFill: {r: 0.85, g: 0.6, b: 1, a: 0.35}
-  flashEdge: {r: 1, g: 0.85, b: 1, a: 0.7}
-  flashTime: 0.25
   zoneSortingOrder: 1

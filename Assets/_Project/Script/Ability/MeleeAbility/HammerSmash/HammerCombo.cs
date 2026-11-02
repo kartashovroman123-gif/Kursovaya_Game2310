@@ -1,37 +1,54 @@
 using UnityEngine;
 
+// Форма зоны удара
+public enum HammerShape
+{
+    Lane,         // дорожка: прямоугольник вперёд от героя (Length - длина, Width - ширина)
+    HalfEllipse,  // дуга вперёд, как 2-я ступень у Атрокса (Length - вперёд, Width - вширь)
+    Circle        // полный круг (Length - радиус)
+}
+
 // Настройки одной ступени удара молотом
 [System.Serializable]
 public class HammerStage
 {
-    [Header("Зона (вокруг героя; у 3-й ступени - вокруг точки приземления)")]
-    [Tooltip("Радиус удара, в клетках")]
-    public float radius = 1.6f;
-    [Tooltip("Ширина зоны в градусах: 120 = сектор перед героем, 180 = полукруг, 360 = полный круг")]
-    [Range(10f, 360f)] public float arcAngle = 120f;
-    [Tooltip("Ширина края, по которому проходит стальная часть молота, в клетках")]
-    public float edgeWidth = 0.5f;
+    [Header("Зона")]
+    public HammerShape shape = HammerShape.Lane;
+    [Tooltip("Дорожка: длина вперёд. Дуга: насколько далеко вперёд. Круг: радиус. В клетках")]
+    public float length = 3.2f;
+    [Tooltip("Дорожка: ширина. Дуга: полная ширина вбок. Круг: не используется. В клетках")]
+    public float width = 1.3f;
+    [Tooltip("Какая часть пути - пустая у героя (0.35 = зона начинается на 35% длины). Для дорожки и круга обычно 0")]
+    [Range(0f, 0.9f)] public float innerFraction = 0f;
+    [Tooltip("Какая часть пути - опасный край с сильным пламенем (0.3 = последние 30%)")]
+    [Range(0.05f, 0.9f)] public float edgeFraction = 0.3f;
 
-    [Header("Урон")]
-    [Tooltip("Урон краем (сталь молота)")]
-    public float edgeDamage = 30f;
-    [Tooltip("Урон рукоятью (внутренняя часть зоны)")]
-    public float handleDamage = 12f;
-    [Tooltip("Сила отбрасывания от края (рукоять не отбрасывает)")]
-    public float knockback = 7f;
+    [Header("Урон и отбрасывание")]
+    public float damage = 14f;
+    [Tooltip("Урон фиолетовой частью волны")]
+    public float edgeDamage = 32f;
+    public float knockback = 3f;
+    [Tooltip("Отбрасывание фиолетовой частью волны")]
+    public float edgeKnockback = 8f;
+
+    [Header("Цепочка вспышек")]
+    [Tooltip("Сколько «шагов» вспышек от героя до конца зоны")]
+    public int steps = 6;
+    [Tooltip("За сколько секунд цепочка доходит от первого шага до последнего")]
+    public float waveTime = 0.35f;
 
     [Header("Время")]
-    [Tooltip("Замах: от нажатия до удара, сек")]
-    public float windup = 0.18f;
+    [Tooltip("Замах: от нажатия до удара о землю, сек")]
+    public float windup = 0.2f;
     [Tooltip("Восстановление после удара, сек")]
     public float recovery = 0.25f;
 
     [Header("Ощущение")]
-    [Tooltip("Шаг вперёд при ударе, в клетках (для 3-й ступени не используется - там прыжок)")]
-    public float lungeDistance = 0.4f;
-    [Tooltip("Толчок камеры при ударе, в клетках")]
+    [Tooltip("Шаг вперёд при ударе, в клетках (у 3-й ступени не используется - там прыжок)")]
+    public float lungeDistance = 0.3f;
+    [Tooltip("Толчок камеры при ударе о землю, в клетках")]
     public float cameraKick = 0.15f;
-    [Tooltip("Стоп-кадр при попадании, сек")]
+    [Tooltip("Стоп-кадр при первом попадании волны, сек")]
     public float hitStop = 0.07f;
 
     [Header("Перезарядка и переход к следующей ступени")]
@@ -43,37 +60,50 @@ public class HammerStage
     public float window = 5f;
 }
 
-// Тяжёлая атака молотом из трёх ступеней (как Q у Атрокса).
-// Ступень 1: короткий взмах перед героем. 3 взмаха когтями за 5 с -> ступень 2.
-// Ступень 2: взмах полукругом. 5 взмахов когтями за 8 с -> ступень 3.
-// Ступень 3: прыжок в точку и удар по кругу с огнём. Потом перезарядка 8 с и снова ступень 1.
-// У каждой ступени два кольца: край (сталь, сильный урон + отбрасывание) и рукоять (слабый урон).
-// Сам ассет только описывает удар; счётчики и прицел живут на герое в PlayerHeavyAttack.
+// Тяжёлая атака молотом из трёх ступеней (как Q у Атрокса). Урон наносит ЦЕПОЧКА ВСПЫШЕК:
+// от героя наружу по очереди трескается земля и вырывается фиолетовое пламя. Враг получает удар,
+// когда вспыхивает его место. На опасном краю пламя сильнее: больше урона и отбрасывания.
+// Цепочка обрывается у стен.
+// Ступень 1: длинная дорожка вперёд.            3 взмаха когтями за 5 с -> ступень 2.
+// Ступень 2: дуга вперёд, начинается не у героя. 5 взмахов когтями за 8 с -> ступень 3.
+// Ступень 3: прыжок в точку и полный круг. Потом перезарядка 8 с и снова ступень 1.
+// Ассет только описывает удар; счётчики и прицел - в PlayerHeavyAttack, вспышки - в Shockwave.
 [CreateAssetMenu(fileName = "HammerCombo", menuName = "Game/Abilities/Hammer Combo")]
 public class HammerCombo : MeleeAbility
 {
-    [Header("Ступени (1 - взмах, 2 - полукруг, 3 - прыжок)")]
+    [Header("Ступени (1 - дорожка, 2 - дуга, 3 - прыжок)")]
     public HammerStage stage1 = new HammerStage
     {
-        radius = 1.6f, arcAngle = 110f, edgeWidth = 0.5f, edgeDamage = 30f, handleDamage = 12f, knockback = 7f,
-        windup = 0.18f, recovery = 0.25f, lungeDistance = 0.4f, cameraKick = 0.15f, hitStop = 0.07f,
+        shape = HammerShape.Lane, length = 5f, width = 1.3f, innerFraction = 0f, edgeFraction = 0.3f,
+        damage = 14f, edgeDamage = 32f, knockback = 3f, edgeKnockback = 8f, steps = 7, waveTime = 0.35f,
+        windup = 0.2f, recovery = 0.25f, lungeDistance = 0.3f, cameraKick = 0.15f, hitStop = 0.07f,
         cooldown = 5f, clawHitsToNext = 3, window = 5f
     };
     public HammerStage stage2 = new HammerStage
     {
-        radius = 1.9f, arcAngle = 180f, edgeWidth = 0.55f, edgeDamage = 40f, handleDamage = 15f, knockback = 8f,
-        windup = 0.22f, recovery = 0.3f, lungeDistance = 0.5f, cameraKick = 0.2f, hitStop = 0.08f,
+        shape = HammerShape.HalfEllipse, length = 4.2f, width = 4.4f, innerFraction = 0.35f, edgeFraction = 0.25f,
+        damage = 16f, edgeDamage = 40f, knockback = 3.5f, edgeKnockback = 9f, steps = 5, waveTime = 0.35f,
+        windup = 0.24f, recovery = 0.3f, lungeDistance = 0.35f, cameraKick = 0.2f, hitStop = 0.08f,
         cooldown = 8f, clawHitsToNext = 5, window = 8f
     };
     public HammerStage stage3 = new HammerStage
     {
-        radius = 1.8f, arcAngle = 360f, edgeWidth = 0.6f, edgeDamage = 60f, handleDamage = 25f, knockback = 10f,
+        shape = HammerShape.Circle, length = 2.4f, width = 0f, innerFraction = 0f, edgeFraction = 0.25f,
+        damage = 25f, edgeDamage = 60f, knockback = 5f, edgeKnockback = 11f, steps = 4, waveTime = 0.3f,
         windup = 0.12f, recovery = 0.35f, lungeDistance = 0f, cameraKick = 0.3f, hitStop = 0.12f,
         cooldown = 8f, clawHitsToNext = 0, window = 0f
     };
 
     [Tooltip("Сколько секунд открытая ступень 2 или 3 ждёт удара, потом всё сбрасывается на ступень 1")]
     public float unlockedTimeout = 5f;
+    [Tooltip("Насколько выше ног начинается волна, в клетках")]
+    public float groundOffset = 0.1f;
+
+    [Header("Связка с рывком")]
+    [Tooltip("Если ударить молотом во время рывка или вскоре после него - замах короче")]
+    public float afterDashWindow = 0.35f;
+    [Tooltip("Во сколько раз короче замах после рывка (0.5 = вдвое)")]
+    [Range(0.1f, 1f)] public float afterDashWindupMultiplier = 0.5f;
 
     [Header("Ступень 3: прыжок")]
     [Tooltip("Максимальная дальность прыжка, в клетках. Дальше курсор не уведёт")]
@@ -83,23 +113,39 @@ public class HammerCombo : MeleeAbility
     [Tooltip("Сколько неуязвимости добавить после приземления, сек")]
     public float landingInvulnerability = 0.1f;
 
-    [Header("Ступень 3: огонь")]
-    [Tooltip("Префаб язычка огня (как VioletFlame, но с кадрами Fire_Flame)")]
+    [Header("Вспышки: картинка")]
+    [Tooltip("Трещина в земле (FlamePuff, Frames = Crack_0..2, Random Single Frame)")]
+    public FlamePuff crackPrefab;
+    [Tooltip("Большая трещина на опасном краю (Crack_Edge_0..1)")]
+    public FlamePuff edgeCrackPrefab;
+    [Tooltip("Извержение фиолетового пламени (Eruption_0..5)")]
+    public FlamePuff eruptionPrefab;
+    [Tooltip("Сильное извержение на опасном краю (Eruption_Edge_0..6)")]
+    public FlamePuff edgeEruptionPrefab;
+    [Tooltip("Пыль у вспышек (необязательно, Dust_0..4)")]
+    public FlamePuff dustPrefab;
+    [Tooltip("Вспышка в месте удара молотом о землю (Impact_0..3, Rise Speed 0)")]
+    public FlamePuff impactPrefab;
+    [Tooltip("Расстояние между вспышками поперёк зоны, в клетках (меньше = гуще)")]
+    public float burstSpacing = 1f;
+    [Tooltip("Насколько случайно сдвигать вспышки, чтобы не стояли по линейке, в клетках")]
+    public float burstJitter = 0.15f;
+    [Tooltip("Общий размер всех вспышек")]
+    public float burstScale = 1f;
+
+    [Header("Ступень 3: огонь (необязательно)")]
+    [Tooltip("Префаб язычка огня (Fire_Flame) - дополнительно к фиолетовым вспышкам")]
     public FlamePuff firePrefab;
     [Tooltip("Сколько язычков огня при приземлении")]
     public int fireCount = 16;
 
     [Header("Цвета зоны")]
     public Color aimFill = new Color(0.55f, 0.25f, 0.9f, 0.3f);
-    public Color aimEdge = new Color(0.7f, 0.35f, 1f, 0.45f);
+    public Color aimEdge = new Color(0.7f, 0.35f, 1f, 0.5f);
     public Color aimOutline = new Color(0.85f, 0.6f, 1f, 0.95f);
     [Tooltip("Насколько бледнее зона, пока молот перезаряжается")]
     [Range(0f, 1f)] public float cooldownAlpha = 0.35f;
-    public Color flashFill = new Color(0.85f, 0.6f, 1f, 0.35f);
-    public Color flashEdge = new Color(1f, 0.85f, 1f, 0.7f);
-    [Tooltip("Сколько секунд гаснет вспышка зоны после удара")]
-    public float flashTime = 0.25f;
-    [Tooltip("Order in Layer зоны (пол = 0, герой = 5)")]
+    [Tooltip("Order in Layer зоны прицела (пол = 0, герой = 5)")]
     public int zoneSortingOrder = 1;
 
     // 0, 1, 2 -> ступень 1, 2, 3
@@ -108,89 +154,121 @@ public class HammerCombo : MeleeAbility
         return index <= 0 ? stage1 : index == 1 ? stage2 : stage3;
     }
 
-    // ctx.comboStep = номер ступени (0..2), ctx.origin = центр зоны, ctx.direction = свободное направление удара
-    HammerStage Current(AbilityContext ctx) => GetStage(ctx.comboStep);
+    // ---------- Геометрия зоны (общая для прицела и волны) ----------
 
-    // ---------- Переопределения MeleeAbility ----------
+    // Попадает ли позиция пути u в зону (учитывая пустую часть у героя)
+    public static bool InZone(HammerStage st, float u) => u >= st.innerFraction && u <= 1f;
 
-    protected override bool IsInZone(AbilityContext ctx, Vector2 toTarget)
+    // Насколько далеко точка local (x - вперёд, y - вбок) по пути волны: 0 = у героя, 1 = конец зоны.
+    // Точка вне формы -> больше 1 (или бесконечность, если позади героя).
+    public static float PathPosition(HammerStage st, Vector2 local)
     {
-        HammerStage st = Current(ctx);
-        if (st.arcAngle >= 359f) return true;
-        return Vector2.Angle(ctx.direction, toTarget) <= st.arcAngle * 0.5f;
+        switch (st.shape)
+        {
+            case HammerShape.Lane:
+                if (local.x < 0f || Mathf.Abs(local.y) > st.width * 0.5f) return float.PositiveInfinity;
+                return local.x / Mathf.Max(0.01f, st.length);
+            case HammerShape.HalfEllipse:
+                if (local.x < 0f) return float.PositiveInfinity;
+                float fx = local.x / Mathf.Max(0.01f, st.length);
+                float fy = local.y / Mathf.Max(0.01f, st.width * 0.5f);
+                return Mathf.Sqrt(fx * fx + fy * fy);
+            default:
+                return local.magnitude / Mathf.Max(0.01f, st.length);
+        }
     }
 
-    // Край, если хоть часть цели дотягивается до стального кольца
-    public bool IsEdge(AbilityContext ctx, Collider2D target)
+    // Самая дальняя точка зоны от центра (для поиска целей)
+    public static float MaxReach(HammerStage st)
     {
-        HammerStage st = Current(ctx);
-        Bounds b = target.bounds;
-        float far = Vector2.Distance(ctx.origin, b.center) + Mathf.Min(b.extents.x, b.extents.y);
-        return far >= st.radius - st.edgeWidth;
+        if (st.shape == HammerShape.Lane) return Mathf.Sqrt(st.length * st.length + st.width * st.width * 0.25f);
+        if (st.shape == HammerShape.HalfEllipse) return Mathf.Max(st.length, st.width * 0.5f);
+        return st.length;
     }
 
-    protected override float DamageFor(AbilityContext ctx, Collider2D target, Vector2 toTarget)
+    // ---------- Удар ----------
+
+    // ctx.comboStep = номер ступени (0..2), ctx.origin = откуда идёт волна, ctx.direction = куда
+    public override void Execute(AbilityContext ctx)
     {
-        HammerStage st = Current(ctx);
-        return IsEdge(ctx, target) ? st.edgeDamage : st.handleDamage;
+        HammerStage st = GetStage(ctx.comboStep);
+        SpawnEffect(ctx);
+        Shockwave.Launch(this, st, ctx);
+        DrawDebugZone(ctx);
     }
 
-    // Край отбрасывает от центра удара
-    protected override void OnTargetHit(GameObject target, AbilityContext ctx, Collider2D col)
+    // Вызывает Shockwave, когда фронт волны дошёл до цели
+    public void HitByWave(GameObject target, Collider2D col, AbilityContext ctx, bool edge, Vector2 pushDir)
     {
-        if (!IsEdge(ctx, col)) return;
+        HammerStage st = GetStage(ctx.comboStep);
+        DealDamage(target, ctx, edge ? st.edgeDamage : st.damage);
+
         Rigidbody2D body = target.GetComponent<Rigidbody2D>();
-        if (body == null || body.bodyType != RigidbodyType2D.Dynamic) return;
-
-        Vector2 away = (Vector2)target.transform.position - ctx.origin;
-        if (away.sqrMagnitude < 0.0001f) away = ctx.direction;
-        body.AddForce(away.normalized * Current(ctx).knockback, ForceMode2D.Impulse);
+        if (body != null && body.bodyType == RigidbodyType2D.Dynamic && pushDir.sqrMagnitude > 0.0001f)
+            body.AddForce(pushDir.normalized * (edge ? st.edgeKnockback : st.knockback), ForceMode2D.Impulse);
     }
+
+    // Стоп-кадр при первом попадании волны
+    public void WaveFirstHit(AbilityContext ctx) => OnHitFeel(ctx);
 
     protected override void OnHitFeel(AbilityContext ctx)
     {
-        HitStop.Do(Current(ctx).hitStop);
+        HitStop.Do(GetStage(ctx.comboStep).hitStop);
     }
 
-    // Вспышка зоны удара (и огонь у 3-й ступени)
+    // Вспышка в месте удара о землю и огонь у 3-й ступени
     protected override void SpawnEffect(AbilityContext ctx)
     {
-        HammerStage st = Current(ctx);
-        HammerZone flash = HammerZone.Create(zoneSortingOrder);
-        flash.Show(ctx.origin, ctx.direction, st.radius, st.arcAngle, st.edgeWidth, flashFill, flashEdge, aimOutline);
-        flash.FadeAndDestroy(flashTime);
+        HammerStage st = GetStage(ctx.comboStep);
+        Vector2 hitPoint = st.shape == HammerShape.Circle ? ctx.origin : ctx.origin + ctx.direction * 0.6f;
+        if (impactPrefab != null) Object.Instantiate(impactPrefab, hitPoint, Quaternion.identity);
 
-        if (ctx.comboStep >= 2 && firePrefab != null)
+        if (st.shape == HammerShape.Circle && firePrefab != null)
         {
             for (int i = 0; i < fireCount; i++)
             {
-                // половина огня - по краю круга, половина - внутри
-                float r = (i % 2 == 0) ? st.radius * Random.Range(0.8f, 1f) : st.radius * Mathf.Sqrt(Random.value) * 0.8f;
+                float r = (i % 2 == 0) ? st.length * Random.Range(0.75f, 1f) : st.length * Mathf.Sqrt(Random.value) * 0.75f;
                 float a = Random.Range(0f, Mathf.PI * 2f);
                 Vector2 p = ctx.origin + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                // огонь не ставим за стену
+                if (WallDistance(ctx.origin, p - ctx.origin, r) < r) continue;
                 Object.Instantiate(firePrefab, p, Quaternion.identity);
             }
         }
     }
 
+    // Контур зоны в окне Scene: красный - граница, жёлтый - начало фиолетового края
     protected override void DrawDebugZone(AbilityContext ctx)
     {
-        HammerStage st = Current(ctx);
-        int steps = 24;
-        float half = st.arcAngle >= 359f ? 180f : st.arcAngle * 0.5f;
-        Vector3 o = ctx.origin;
-        Vector3 prevOuter = Vector3.zero, prevInner = Vector3.zero;
-        for (int i = 0; i <= steps; i++)
+        HammerStage st = GetStage(ctx.comboStep);
+        Vector2 f = ctx.direction.normalized, s = new Vector2(-f.y, f.x);
+        Vector2 o = ctx.origin;
+        float edgeStart = 1f - st.edgeFraction;
+        if (st.shape == HammerShape.Lane)
         {
-            float ang = Mathf.Lerp(-half, half, i / (float)steps);
-            Vector3 d = Quaternion.Euler(0f, 0f, ang) * (Vector3)ctx.direction;
-            Vector3 outer = o + d * st.radius, inner = o + d * (st.radius - st.edgeWidth);
+            float w = st.width * 0.5f;
+            Vector2 a = o - s * w, b = o + s * w, c = b + f * st.length, d = a + f * st.length;
+            Debug.DrawLine(a, b, Color.red, 0.5f); Debug.DrawLine(b, c, Color.red, 0.5f);
+            Debug.DrawLine(c, d, Color.red, 0.5f); Debug.DrawLine(d, a, Color.red, 0.5f);
+            Debug.DrawLine(a + f * st.length * edgeStart, b + f * st.length * edgeStart, Color.yellow, 0.5f);
+            return;
+        }
+        bool half = st.shape == HammerShape.HalfEllipse;
+        float F = st.length, S = half ? st.width * 0.5f : st.length;
+        float from = half ? -90f : 0f, to = half ? 90f : 360f;
+        Vector2 prevO = Vector2.zero, prevI = Vector2.zero, prevN = Vector2.zero;
+        for (int i = 0; i <= 32; i++)
+        {
+            float t = Mathf.Lerp(from, to, i / 32f) * Mathf.Deg2Rad;
+            Vector2 p = f * (F * Mathf.Cos(t)) + s * (S * Mathf.Sin(t));
+            Vector2 po = o + p, pi = o + p * edgeStart, pn = o + p * st.innerFraction;
             if (i > 0)
             {
-                Debug.DrawLine(prevOuter, outer, Color.red, 0.3f);
-                Debug.DrawLine(prevInner, inner, Color.yellow, 0.3f);
+                Debug.DrawLine(prevO, po, Color.red, 0.5f);
+                Debug.DrawLine(prevI, pi, Color.yellow, 0.5f);
+                if (st.innerFraction > 0f) Debug.DrawLine(prevN, pn, Color.red, 0.5f);
             }
-            prevOuter = outer; prevInner = inner;
+            prevO = po; prevI = pi; prevN = pn;
         }
     }
 }
