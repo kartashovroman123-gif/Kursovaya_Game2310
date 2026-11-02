@@ -77,7 +77,7 @@ MonoBehaviour:
     clawHitsToNext: 0
     window: 0
   unlockedTimeout: 5
-  maxLeapDistance: 3.5
+  maxLeapDistance: 2
   leapTime: 0.3
   landingInvulnerability: 0.1
   firePrefab: {fileID: 7528398000811997609, guid: ff41b9c34e870cf48b93456a4e103b1f, type: 3}

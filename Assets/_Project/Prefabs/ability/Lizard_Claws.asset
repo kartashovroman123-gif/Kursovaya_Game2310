@@ -9,15 +9,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af14fac4af4365d4ea2263001d60899d, type: 3}
+  m_Script: {fileID: 11500000, guid: d11248723c02c014889ffaf5e2cef07b, type: 3}
   m_Name: Lizard_Claws
   m_EditorClassIdentifier: Assembly-CSharp::ClawSlash
-  displayName: Lizard Claw test
+  displayName: 
   description: 
   icon: {fileID: 0}
   damage: 25
   cooldown: 0.3
-  range: 1.4
+  range: 1.5
   windup: 0.06
   recovery: 0.16
   animationTrigger: 
@@ -31,3 +31,4 @@ MonoBehaviour:
   hitStop: 0.05
   hitKick: 0.1
   finisherFeelMultiplier: 1.6
+  finisherDamageMultiplier: 1.5
