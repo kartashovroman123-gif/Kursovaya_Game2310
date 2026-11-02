@@ -60,7 +60,7 @@ public class HammerZone : MonoBehaviour
 
     static Sprite GetSprite(HammerStage st, Color fill, Color edge, Color outline)
     {
-        string key = $"{st.shape}_{st.length:0.00}_{st.width:0.00}_{st.innerFraction:0.00}_{st.edgeFraction:0.00}_{fill}_{edge}_{outline}";
+        string key = $"{st.shape}_{st.length:0.00}_{st.width:0.00}_{st.baseWidth:0.00}_{st.innerFraction:0.00}_{st.edgeFraction:0.00}_{fill}_{edge}_{outline}";
         if (cache.TryGetValue(key, out Sprite s) && s != null) return s;
         s = Build(st, fill, edge, outline);
         cache[key] = s;
@@ -95,6 +95,8 @@ public class HammerZone : MonoBehaviour
                 inside = Mathf.Min(st.length - p.x, p.x, st.width * 0.5f - Mathf.Abs(p.y)) / px;
             else if (st.shape == HammerShape.HalfEllipse)
                 inside = Mathf.Min((1f - u) * pathScale, p.x) / px;
+            else if (st.shape == HammerShape.Cone)
+                inside = HammerCombo.ConeDistance(st, p) / px;
             else
                 inside = (1f - u) * pathScale / px;
             if (st.innerFraction > 0f)                                   // пустая часть у героя

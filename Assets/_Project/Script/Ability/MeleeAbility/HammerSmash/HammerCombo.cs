@@ -5,7 +5,9 @@ public enum HammerShape
 {
     Lane,         // дорожка: прямоугольник вперёд от героя (Length - длина, Width - ширина)
     HalfEllipse,  // дуга вперёд, как 2-я ступень у Атрокса (Length - вперёд, Width - вширь)
-    Circle        // полный круг (Length - радиус)
+    Circle,       // полный круг (Length - радиус)
+    Cone          // сектор («кусок пиццы»): из точки у героя расходится вперёд, конец - дуга
+                  // (Length - длина, Width - ширина конца)
 }
 
 // Настройки одной ступени удара молотом
@@ -14,10 +16,12 @@ public class HammerStage
 {
     [Header("Зона")]
     public HammerShape shape = HammerShape.Lane;
-    [Tooltip("Дорожка: длина вперёд. Дуга: насколько далеко вперёд. Круг: радиус. В клетках")]
+    [Tooltip("Дорожка: длина вперёд. Дуга: насколько далеко вперёд. Круг: радиус. Конус: вся длина. В клетках")]
     public float length = 3.2f;
-    [Tooltip("Дорожка: ширина. Дуга: полная ширина вбок. Круг: не используется. В клетках")]
+    [Tooltip("Дорожка: ширина. Дуга: полная ширина вбок. Конус: ширина конца. Круг: не используется. В клетках")]
     public float width = 1.3f;
+    [Tooltip("Только конус: ширина у самого героя. 0 = острая точка, 1 = почти квадратное начало. В клетках")]
+    public float baseWidth = 0f;
     [Tooltip("Какая часть пути - пустая у героя (0.35 = зона начинается на 35% длины). Для дорожки и круга обычно 0")]
     [Range(0f, 0.9f)] public float innerFraction = 0f;
     [Tooltip("Какая часть пути - опасный край с сильным пламенем (0.3 = последние 30%)")]
@@ -65,13 +69,13 @@ public class HammerStage
 // когда вспыхивает его место. На опасном краю пламя сильнее: больше урона и отбрасывания.
 // Цепочка обрывается у стен.
 // Ступень 1: длинная дорожка вперёд.            3 взмаха когтями за 5 с -> ступень 2.
-// Ступень 2: дуга вперёд, начинается не у героя. 5 взмахов когтями за 8 с -> ступень 3.
+// Ступень 2: сектор: от героя расходится вперёд, конец - широкая дуга. 5 взмахов за 8 с -> ступень 3.
 // Ступень 3: прыжок в точку и полный круг. Потом перезарядка 8 с и снова ступень 1.
 // Ассет только описывает удар; счётчики и прицел - в PlayerHeavyAttack, вспышки - в Shockwave.
 [CreateAssetMenu(fileName = "HammerCombo", menuName = "Game/Abilities/Hammer Combo")]
 public class HammerCombo : MeleeAbility
 {
-    [Header("Ступени (1 - дорожка, 2 - дуга, 3 - прыжок)")]
+    [Header("Ступени (1 - дорожка, 2 - конус, 3 - прыжок)")]
     public HammerStage stage1 = new HammerStage
     {
         shape = HammerShape.Lane, length = 5f, width = 1.3f, innerFraction = 0f, edgeFraction = 0.3f,
@@ -81,8 +85,8 @@ public class HammerCombo : MeleeAbility
     };
     public HammerStage stage2 = new HammerStage
     {
-        shape = HammerShape.HalfEllipse, length = 4.2f, width = 4.4f, innerFraction = 0.35f, edgeFraction = 0.25f,
-        damage = 16f, edgeDamage = 40f, knockback = 3.5f, edgeKnockback = 9f, steps = 5, waveTime = 0.35f,
+        shape = HammerShape.Cone, length = 4.8f, width = 4f, baseWidth = 1.2f, innerFraction = 0f, edgeFraction = 0.25f,
+        damage = 16f, edgeDamage = 40f, knockback = 3.5f, edgeKnockback = 9f, steps = 6, waveTime = 0.38f,
         windup = 0.24f, recovery = 0.3f, lungeDistance = 0.35f, cameraKick = 0.2f, hitStop = 0.08f,
         cooldown = 8f, clawHitsToNext = 5, window = 8f
     };
@@ -173,9 +177,45 @@ public class HammerCombo : MeleeAbility
                 float fx = local.x / Mathf.Max(0.01f, st.length);
                 float fy = local.y / Mathf.Max(0.01f, st.width * 0.5f);
                 return Mathf.Sqrt(fx * fx + fy * fy);
+            case HammerShape.Cone:
+                if (ConeDistance(st, local) < 0f) return float.PositiveInfinity;
+                return local.magnitude / Mathf.Max(0.01f, st.length);
             default:
                 return local.magnitude / Mathf.Max(0.01f, st.length);
         }
+    }
+
+    // ---------- Конус (ступень 2) ----------
+    // Сектор, как кусок пиццы, но у героя начинается не острой точкой, а отрезком шириной Base Width.
+    // Дальше две прямые расходятся до ширины Width на конце, конец - дуга круга радиусом Length.
+
+    static float ConeBase(HammerStage st) => Mathf.Clamp(st.baseWidth, 0f, Mathf.Max(0f, st.width - 0.1f));
+
+    // Угол наклона боковых прямых (радианы): насколько быстро расходится конус
+    public static float ConeSideAngle(HammerStage st)
+    {
+        float L = Mathf.Max(0.05f, st.length);
+        return Mathf.Atan(Mathf.Max(0f, (st.width - ConeBase(st)) * 0.5f / L));
+    }
+
+    // Насколько точка внутри конуса, в клетках: больше 0 - внутри, меньше 0 - снаружи (для контура прицела)
+    public static float ConeDistance(HammerStage st, Vector2 local)
+    {
+        float a = ConeSideAngle(st);
+        float b = ConeBase(st) * 0.5f;
+        float sides = (b + local.x * Mathf.Tan(a) - Mathf.Abs(local.y)) * Mathf.Cos(a);   // до боковых прямых
+        float arc = st.length - local.magnitude;                                            // до дуги на конце
+        return Mathf.Min(Mathf.Min(sides, arc), local.x);                                   // и не позади героя
+    }
+
+    // Половина угла, который занимает конус на расстоянии r от героя (радианы). -1 = на этом расстоянии зоны нет
+    public static float ConeHalfAngleAt(HammerStage st, float r)
+    {
+        if (r <= 0f || r > st.length) return -1f;
+        float a = ConeSideAngle(st);
+        float b = ConeBase(st) * 0.5f;
+        float k = Mathf.Clamp(b * Mathf.Cos(a) / r, 0f, 1f);
+        return Mathf.Min(Mathf.PI * 0.5f, a + Mathf.Asin(k));    // у героя - почти полукруг, дальше сужается до боковых прямых
     }
 
     // Самая дальняя точка зоны от центра (для поиска целей)
@@ -183,7 +223,7 @@ public class HammerCombo : MeleeAbility
     {
         if (st.shape == HammerShape.Lane) return Mathf.Sqrt(st.length * st.length + st.width * st.width * 0.25f);
         if (st.shape == HammerShape.HalfEllipse) return Mathf.Max(st.length, st.width * 0.5f);
-        return st.length;
+        return st.length;   // круг и конус
     }
 
     // ---------- Удар ----------
@@ -251,6 +291,31 @@ public class HammerCombo : MeleeAbility
             Debug.DrawLine(a, b, Color.red, 0.5f); Debug.DrawLine(b, c, Color.red, 0.5f);
             Debug.DrawLine(c, d, Color.red, 0.5f); Debug.DrawLine(d, a, Color.red, 0.5f);
             Debug.DrawLine(a + f * st.length * edgeStart, b + f * st.length * edgeStart, Color.yellow, 0.5f);
+            return;
+        }
+        if (st.shape == HammerShape.Cone)
+        {
+            float bw = ConeBase(st) * 0.5f;
+            float endAng = ConeHalfAngleAt(st, st.length);
+            float re = st.length * edgeStart, edgeAng = ConeHalfAngleAt(st, re);
+            Vector2 endL = o + (f * Mathf.Cos(-endAng) + s * Mathf.Sin(-endAng)) * st.length;
+            Vector2 endR = o + (f * Mathf.Cos(endAng) + s * Mathf.Sin(endAng)) * st.length;
+            Debug.DrawLine(o - s * bw, o + s * bw, Color.red, 0.5f);          // основание у героя
+            Debug.DrawLine(o - s * bw, endL, Color.red, 0.5f);                // боковые прямые
+            Debug.DrawLine(o + s * bw, endR, Color.red, 0.5f);
+            Vector2 prevC = endL, prevE = Vector2.zero;
+            for (int i = 0; i <= 32; i++)
+            {
+                float t = Mathf.Lerp(-1f, 1f, i / 32f);
+                Vector2 pc = o + (f * Mathf.Cos(t * endAng) + s * Mathf.Sin(t * endAng)) * st.length;
+                Vector2 pe = o + (f * Mathf.Cos(t * edgeAng) + s * Mathf.Sin(t * edgeAng)) * re;
+                if (i > 0)
+                {
+                    Debug.DrawLine(prevC, pc, Color.red, 0.5f);                   // дуга на конце
+                    Debug.DrawLine(prevE, pe, Color.yellow, 0.5f);                // начало края
+                }
+                prevC = pc; prevE = pe;
+            }
             return;
         }
         bool half = st.shape == HammerShape.HalfEllipse;

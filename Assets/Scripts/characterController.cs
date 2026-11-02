@@ -1,25 +1,37 @@
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class characterController : MonoBehaviour
 {
-    [SerializeField] int speed = 20;
-    private Rigidbody2D rb;
-    private Vector2 direction;
+    [Tooltip("Запасная скорость, если у героя нет PlayerStats или Char Data (например, тестовая сцена)")]
+    [SerializeField] float fallbackSpeed = 5f;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    Rigidbody2D rb;
+    PlayerStats stats;
+    Vector2 input;
+
+    // скорость каждый кадр берётся из PlayerStats: база из Char Data + все модификаторы
+    float Speed => stats != null && stats.data != null ? stats.moveSpeed : fallbackSpeed;
+
+    void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        stats = GetComponent<PlayerStats>();
     }
 
-    // Update is called once per frame
+    void Update()
+    {
+        input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        if (input.sqrMagnitude > 1f) input.Normalize();
+    }
+
     void FixedUpdate()
     {
-        float dirX = Input.GetAxisRaw("Horizontal");
-        float dirY = Input.GetAxisRaw("Vertical");
-    
-        direction = new Vector2(dirX, dirY) * speed * Time.deltaTime;
-        rb.position += direction * speed * Time.deltaTime;
+        rb.linearVelocity = input * Speed;
+    }
+
+    void OnDisable()
+    {
+        input = Vector2.zero;
+        if (rb != null) rb.linearVelocity = Vector2.zero;
     }
 }

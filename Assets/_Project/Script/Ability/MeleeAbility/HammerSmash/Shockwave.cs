@@ -70,6 +70,24 @@ public class Shockwave : MonoBehaviour
                     AddBurst(row, origin + side * s, fwd * (u * st.length), edge);
                 }
             }
+            else if (st.shape == HammerShape.Cone)
+            {
+                // конус: на расстоянии r вспышки ставятся по дуге шириной в конус на этом расстоянии.
+                // У героя дуга короткая (1 вспышка), к круглому концу - всё шире
+                float r = st.length * u;
+                float halfAng = HammerCombo.ConeHalfAngleAt(st, r);
+                if (halfAng > 0f)
+                {
+                    float arc = 2f * halfAng * r;
+                    int m = Mathf.Max(1, Mathf.RoundToInt(arc / spacing));
+                    for (int j = 0; j < m; j++)
+                    {
+                        float frac = m == 1 ? 0.5f : (j + 0.5f + (shift ? 0.2f : -0.2f)) / m;
+                        float ang = Mathf.Lerp(-halfAng, halfAng, Mathf.Clamp01(frac)) * 0.92f;   // чуть внутрь от края
+                        AddBurst(row, origin, fwd * (r * Mathf.Cos(ang)) + side * (r * Mathf.Sin(ang)), edge);
+                    }
+                }
+            }
             else
             {
                 bool half = st.shape == HammerShape.HalfEllipse;

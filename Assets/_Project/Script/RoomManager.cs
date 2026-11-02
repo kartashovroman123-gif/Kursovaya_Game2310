@@ -5,6 +5,10 @@ using UnityEngine;
 [System.Serializable] public class RoomEntry { public RoomType type; public Room prefab; }
 [System.Serializable] public class TypeIcon { public RoomType type; public Sprite icon; }
 
+// Загрузка комнат и переходы между ними.
+// Живёт всегда одна комната: при переходе старая удаляется, новая создаётся из префаба нужного типа.
+// Забег: хаб -> обычные комнаты -> после Rooms Before Boss комнат появляется дверь к боссу -> после босса в хаб.
+// Что делать при входе, когда открывать двери и т.п. - решает сама комната (Room и её потомки).
 public class RoomManager : MonoBehaviour
 {
     public static RoomManager Instance;
@@ -12,14 +16,22 @@ public class RoomManager : MonoBehaviour
     public Room hubPrefab;
     public RoomEntry[] rooms;
     public TypeIcon[] icons;
-    [Tooltip("Из чего выбираются двери. Повторы увеличивают шанс")]
+    [Tooltip("Из чего выбираются обычные двери. Повторы увеличивают шанс")]
     public RoomType[] doorChoices = { RoomType.Combat, RoomType.Combat, RoomType.Shop, RoomType.Upgrade, RoomType.Item };
     [Tooltip("Затемнение экрана при переходе (необязательно)")]
     public ScreenFader fader;
 
+    [Header("Забег")]
+    [Tooltip("После скольких комнат (не считая хаба) появляется дверь к боссу")]
+    public int roomsBeforeBoss = 8;
+    [Tooltip("Шанс, что дверь на ключ (KeyDoor) в комнате будет активна (0..1)")]
+    [Range(0f, 1f)] public float keyDoorChance = 0.35f;
+
     Room current;
     Room lastPrefab;
     bool busy;
+
+    public Room Current => current;
 
     void Awake() { Instance = this; }
 
@@ -57,6 +69,7 @@ public class RoomManager : MonoBehaviour
 
     Room PickPrefab(RoomType type)
     {
+        if (type == RoomType.Hub && hubPrefab != null) return hubPrefab;
         var list = new List<Room>();
         foreach (var e in rooms) if (e.type == type && e.prefab != null) list.Add(e.prefab);
         if (list.Count > 1) list.Remove(lastPrefab);
@@ -65,19 +78,23 @@ public class RoomManager : MonoBehaviour
 
     void Load(Room prefab)
     {
-        if (current != null) Destroy(current.gameObject);
+        if (current != null)
+        {
+            current.PrepareUnload();               // враги и награды удалятся вместе с комнатой - это не «смерть»
+            Destroy(current.gameObject);
+        }
         current = Instantiate(prefab, Vector3.zero, Quaternion.identity);
         lastPrefab = prefab;
 
+        current.OnLoaded();                        // хаб сбрасывает забег, остальные комнаты засчитываются
         PlacePlayer();
         SetupCamera();
         SetupDoors();
         current.Enter();
     }
 
-    // Отключаем управление героем на время перехода (скрипт движения друга)
-    // В RoomManager.cs найди метод SetPlayerControl и замени его ЦЕЛИКОМ на этот.
-    // Теперь движение включает/выключает PlayerAbilities: он знает, идёт ли удар,
+    // Отключаем управление героем на время перехода.
+    // Движение включает/выключает PlayerAbilities: он знает, идёт ли удар,
     // и не включит ходьбу посреди перехода между комнатами.
     void SetPlayerControl(bool on)
     {
@@ -90,7 +107,6 @@ public class RoomManager : MonoBehaviour
         var mover = player.GetComponent<characterController>();
         if (mover != null) mover.enabled = on;
     }
-
 
     void PlacePlayer()
     {
@@ -110,15 +126,24 @@ public class RoomManager : MonoBehaviour
         cam.Snap();
     }
 
+    // Каждая дверь сама решает, куда вести (обычная, на ключ, к боссу) - по общему плану
     void SetupDoors()
     {
-        RoomType[] pool = (current.allowedNext != null && current.allowedNext.Length > 0)
-            ? current.allowedNext : doorChoices;
-        foreach (var d in current.doors)
+        bool hasBossDoor = false;
+        foreach (Door d in current.doors)
+            if (d is BossDoor) hasBossDoor = true;
+
+        var plan = new DoorPlan
         {
-            RoomType t = pool[Random.Range(0, pool.Length)];
-            d.Setup(t, IconFor(t));
-        }
+            pool = current.NextChoices(doorChoices),
+            bossDue = current.AllowsBossDoor && RunState.RoomsPassed >= roomsBeforeBoss,
+            roomHasBossDoor = hasBossDoor,
+            keyDoorChance = keyDoorChance,
+            iconFor = IconFor
+        };
+
+        foreach (Door d in current.doors)
+            if (d != null) d.Configure(plan);
     }
 
     Sprite IconFor(RoomType t)
