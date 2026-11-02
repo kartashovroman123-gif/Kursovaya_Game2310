@@ -24,7 +24,7 @@ MonoBehaviour:
   dashTime: 0.16
   direction: 0
   invulnerableTime: 0.25
-  flamePrefab: {fileID: 7528398000811997609, guid: ff41b9c34e870cf48b93456a4e103b1f, type: 3}
+  flamePrefab: {fileID: 1965267517614419304, guid: 1e91b55c90df34e4a9a9ff8ad655e4f3, type: 3}
   flameInterval: 0.025
   flameOffset: {x: 0, y: 0.15}
   flameAfterDash: 0.04
