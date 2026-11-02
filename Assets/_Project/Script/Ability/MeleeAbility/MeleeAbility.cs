@@ -11,6 +11,7 @@ using UnityEngine.Tilemaps;
 //   DealDamage    - единственное место, куда друг подключает здоровье
 //   OnTargetHit   - что делать с каждой пораженной целью (отбрасывание и т.п.)
 //   OnHitFeel     - стоп-кадр и толчок камеры, если хоть кого-то задели
+// Стены, сам герой и триггеры отсеиваются общими проверками GetTarget / IsWall.
 public abstract class MeleeAbility : AbilityData
 {
     [Header("Зона удара")]
@@ -44,11 +45,8 @@ public abstract class MeleeAbility : AbilityData
 
         foreach (Collider2D c in found)
         {
-            if (c.isTrigger) continue;                                            // двери-триггеры и т.п.
-            if (c is CompositeCollider2D || c.GetComponent<Tilemap>() != null) continue;   // стены и пол
-            GameObject target = c.attachedRigidbody != null ? c.attachedRigidbody.gameObject : c.gameObject;
-            if (ctx.owner != null && target == ctx.owner.gameObject) continue;    // не бьём себя
-            if (already.Contains(target)) continue;
+            GameObject target = GetTarget(c, ctx);
+            if (target == null || already.Contains(target)) continue;
 
             // попала ли цель в зону: смотрим на ближайшую к герою точку цели
             Vector2 closest = c.ClosestPoint(ctx.origin);
@@ -64,6 +62,35 @@ public abstract class MeleeAbility : AbilityData
         if (already.Count > 0) OnHitFeel(ctx);
 
         DrawDebugZone(ctx);
+    }
+
+    // ---------- Общие проверки (ими пользуется и ударная волна молота) ----------
+
+    // Кого бьёт этот коллайдер: объект цели или null (стены, пол, триггеры, сам герой)
+    public static GameObject GetTarget(Collider2D c, AbilityContext ctx)
+    {
+        if (c == null || c.isTrigger) return null;                                  // двери-триггеры и т.п.
+        if (IsWall(c)) return null;                                                 // стены и пол
+        GameObject target = c.attachedRigidbody != null ? c.attachedRigidbody.gameObject : c.gameObject;
+        if (ctx.owner != null && target == ctx.owner.gameObject) return null;       // не бьём себя
+        return target;
+    }
+
+    // Стена = коллайдер тайлмапа (обычный или составной)
+    public static bool IsWall(Collider2D c)
+    {
+        return c != null && !c.isTrigger && (c is CompositeCollider2D || c.GetComponent<Tilemap>() != null);
+    }
+
+    // Расстояние до ближайшей стены по лучу (или max, если стены нет)
+    public static float WallDistance(Vector2 start, Vector2 dir, float max)
+    {
+        if (max <= 0f || dir.sqrMagnitude < 0.0001f) return max;
+        RaycastHit2D[] hits = Physics2D.RaycastAll(start, dir.normalized, max);
+        float best = max;
+        foreach (RaycastHit2D h in hits)
+            if (IsWall(h.collider) && h.distance < best) best = h.distance;
+        return best;
     }
 
     // ---------- Что переопределяют потомки ----------
