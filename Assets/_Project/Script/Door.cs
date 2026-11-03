@@ -1,114 +1,128 @@
+using System.Collections;
 using UnityEngine;
 
-// Что RoomManager сообщает дверям при загрузке комнаты (каждая дверь решает сама, что с этим делать)
-public class DoorPlan
-{
-    public RoomType[] pool;              // из каких типов выбирать обычную дверь
-    public bool bossDue;                 // пора к боссу
-    public bool roomHasBossDoor;         // в комнате есть отдельная дверь босса
-    public float keyDoorChance;          // шанс, что дверь на ключ будет активна
-    public System.Func<RoomType, Sprite> iconFor;
-
-    public RoomType RandomType() =>
-        pool != null && pool.Length > 0 ? pool[Random.Range(0, pool.Length)] : RoomType.Combat;
-    public Sprite IconFor(RoomType t) => iconFor != null ? iconFor(t) : null;
-}
-
-// ОБЫЧНАЯ ДВЕРЬ (верх дерева: Door -> LockedDoor -> KeyDoor / BossDoor).
-// Закрыта, пока комната не пройдена, потом открывается сама. Вошёл в открытую дверь - переход.
-// Над дверью иконка: куда она ведёт. Неиспользуемая дверь «запечатана»: закрыта навсегда, без иконки.
-// Потомки меняют: когда дверь активна (Configure) и как она открывается (OnRoomCleared, OnPlayerTouch).
+// ОБЫЧНАЯ ДВЕРЬ-ВЫХОД (верх дерева: Door -> LockedDoor -> KeyDoor / BossDoor;  Door -> EntranceDoor).
+// Дверь не стена: она стоит на полу у стены, не мешает ходить и не имеет твёрдых коллизий.
+// Создаётся сама (RoomManager) в месте DoorSlot при входе в комнату - на сцену и в префабы её ставить не нужно.
+// Пока комната не пройдена - закрыта. После зачистки проигрывает анимацию открытия.
+// Открытая: герой заходит в зону у её основания - переход в комнату того типа, что нарисован на створке.
+// Потомки меняют: какие кадры показывать (GetFrames), что делать при зачистке (OnRoomCleared)
+// и при касании героя (OnPlayerTouch).
+[RequireComponent(typeof(SpriteRenderer))]
 public class Door : MonoBehaviour
 {
-    public SpriteRenderer doorRenderer;
-    [Tooltip("Если пусто - берётся спрайт, который стоит на двери в префабе")]
-    public Sprite closedSprite;
-    public Sprite openSprite;
-    public SpriteRenderer iconRenderer;   // дочерний Icon
-    public Collider2D blocker;            // дочерний Blocker (твёрдый)
-
     public RoomType NextType { get; private set; }
-    public bool IsOpen { get; private set; }
-    public bool IsSealed { get; private set; }
+    public DoorSide Side { get; private set; }
+    public bool IsOpen { get; private set; }          // открыта полностью (анимация закончилась)
+    protected bool IsOpening { get; private set; }
     protected bool RoomCleared { get; set; }
+    protected DoorStyle Style { get; private set; }
+    protected SpriteRenderer Renderer { get; private set; }
+    protected Sprite[] Frames { get; private set; }
+    protected BoxCollider2D Trigger { get; private set; }
 
-    protected virtual void Awake()
+    // Вызывает RoomManager сразу после создания
+    public void Init(DoorSide side, RoomType nextType, DoorStyle style)
     {
-        if (doorRenderer == null) doorRenderer = GetComponent<SpriteRenderer>();
-        if (closedSprite == null && doorRenderer != null) closedSprite = doorRenderer.sprite;
+        Side = side;
+        NextType = nextType;
+        Style = style;
+
+        Renderer = GetComponent<SpriteRenderer>();
+        if (Renderer == null) Renderer = gameObject.AddComponent<SpriteRenderer>();
+        Renderer.flipX = side == DoorSide.Left;                    // левая - зеркальная правая
+        Renderer.sortingOrder = side == DoorSide.Down ? style.frontSortingOrder : style.backSortingOrder;
+        if (style.material != null) Renderer.sharedMaterial = style.material;
+
+        Frames = GetFrames();
+        if (Frames == null || Frames.Length == 0)
+            Debug.LogWarning($"Door Style: нет кадров для {GetType().Name} ({nextType}, {side})");
+        SetFrame(0);
+
+        SetupTrigger();
+        OnInit();
     }
 
-    // ---------- Настройка при загрузке комнаты ----------
-
-    // Обычная дверь: ведёт в случайную комнату. Когда пора к боссу - к боссу,
-    // а если у комнаты есть отдельная дверь босса - эта запечатывается
-    public virtual void Configure(DoorPlan plan)
+    // ----- Что решают потомки -----
+    protected virtual Sprite[] GetFrames()
     {
-        if (plan.bossDue)
-        {
-            if (plan.roomHasBossDoor) Seal();
-            else Setup(RoomType.Boss, plan.IconFor(RoomType.Boss));
-            return;
-        }
-        RoomType t = plan.RandomType();
-        Setup(t, plan.IconFor(t));
+        DoorFrames f = Style != null ? Style.For(NextType) : null;
+        return f != null ? f.Get(Side) : null;
     }
+    protected virtual void OnInit() { }
 
-    public void Setup(RoomType type, Sprite icon)
-    {
-        IsSealed = false;
-        RoomCleared = false;
-        NextType = type;
-        SetIcon(icon);
-        SetOpen(false);
-        OnSetup();
-    }
-
-    // Дверь не используется: закрыта навсегда, без иконки
-    public void Seal()
-    {
-        IsSealed = true;
-        RoomCleared = false;
-        SetIcon(null);
-        SetOpen(false);
-        OnSealed();
-    }
-
-    protected virtual void OnSetup() { }
-    protected virtual void OnSealed() { }
-
-    // ---------- Во время игры ----------
-
-    // Комната пройдена. Обычная дверь открывается сразу
+    // Комната пройдена: обычная дверь открывается сама
     public virtual void OnRoomCleared()
     {
         RoomCleared = true;
-        if (!IsSealed) SetOpen(true);
+        Open();
     }
 
-    // Герой касается двери. Обычная: если открыта - переход
+    // Герой стоит в зоне прохода: если дверь открыта - переход
     protected virtual void OnPlayerTouch()
     {
-        if (IsOpen && !IsSealed && RoomManager.Instance != null)
-            RoomManager.Instance.GoToNext(NextType);
+        if (IsOpen && RoomManager.Instance != null)
+            RoomManager.Instance.GoToNext(NextType, Side);
     }
 
-    public void SetOpen(bool open)
+    // ----- Анимация -----
+
+    public void Open()
     {
-        IsOpen = open;
-        if (blocker != null) blocker.enabled = !open;
-        if (doorRenderer != null)
+        if (IsOpen || IsOpening) return;
+        StartCoroutine(OpenRoutine());
+    }
+
+    IEnumerator OpenRoutine()
+    {
+        IsOpening = true;
+        yield return PlayFrames(true);
+        IsOpening = false;
+        IsOpen = true;
+    }
+
+    // Проиграть кадры: вперёд (открытие) или назад (захлопывание)
+    protected IEnumerator PlayFrames(bool forward)
+    {
+        int n = Frames != null ? Frames.Length : 0;
+        for (int i = 0; i < n; i++)
         {
-            if (open && openSprite != null) doorRenderer.sprite = openSprite;
-            else if (!open && closedSprite != null) doorRenderer.sprite = closedSprite;
+            SetFrame(forward ? i : n - 1 - i);
+            yield return new WaitForSeconds(Style.frameTime);
         }
     }
 
-    void SetIcon(Sprite icon)
+    protected void SetFrame(int i)
     {
-        if (iconRenderer == null) return;
-        iconRenderer.sprite = icon;
-        iconRenderer.enabled = icon != null;
+        if (Renderer == null || Frames == null || Frames.Length == 0) return;
+        Renderer.sprite = Frames[Mathf.Clamp(i, 0, Frames.Length - 1)];
+    }
+
+    protected int LastFrame => Frames != null && Frames.Length > 0 ? Frames.Length - 1 : 0;
+
+    // ----- Зона прохода у основания двери (триггер, не твёрдая) -----
+
+    void SetupTrigger()
+    {
+        Trigger = GetComponent<BoxCollider2D>();
+        if (Trigger == null) Trigger = gameObject.AddComponent<BoxCollider2D>();
+        Trigger.isTrigger = true;
+        switch (Side)
+        {
+            case DoorSide.Up:
+                Trigger.size = Style.upTriggerSize;
+                Trigger.offset = new Vector2(0f, Style.upTriggerSize.y * 0.5f);
+                break;
+            case DoorSide.Down:
+                Trigger.size = Style.downTriggerSize;
+                Trigger.offset = new Vector2(0f, Style.downTriggerSize.y * 0.5f);
+                break;
+            default:
+                Trigger.size = Style.sideTriggerSize;
+                float x = Side == DoorSide.Right ? -0.1f : 0.1f;     // чуть в сторону комнаты
+                Trigger.offset = new Vector2(x, Style.sideTriggerSize.y * 0.5f);
+                break;
+        }
     }
 
     void OnTriggerEnter2D(Collider2D other) { if (other.CompareTag("Player")) OnPlayerTouch(); }

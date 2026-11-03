@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: -5889476119033228271}
   - component: {fileID: 5742592923552075678}
   - component: {fileID: 8260108251871994903}
+  - component: {fileID: 5194552501880805963}
   m_Layer: 0
   m_Name: Hero_template
   m_TagString: Player
@@ -118,7 +119,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e4fbe8a7e2ba274ead7cd020cde8b82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::characterController
-  speed: 17
+  fallbackSpeed: 5
 --- !u!212 &4674118498897713666
 SpriteRenderer:
   serializedVersion: 2
@@ -231,6 +232,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b75927fda55e16d4aa6ded6edcb10701, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
+  turnThreshold: 0.5
 --- !u!114 &5742592923552075678
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -244,7 +246,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAbilities
   lightAttackKey: 323
+  inputBuffer: 0.2
+  movementKey: 304
+  dashCancelsAttack: 1
+  dashDistanceMultiplier: 1
+  dashInvulnerabilityBonus: 0
   chestHeight: 0.6
+  lungeDistance: 0.35
+  lungeTime: 0.08
+  finisherLungeMultiplier: 1.8
+  lockMovement: 1
+  comboLength: 3
+  comboWindow: 0.35
+  finisherExtraCooldown: 0.2
+  swingKick: 0.05
   faceHoldTime: 0.15
 --- !u!114 &8260108251871994903
 MonoBehaviour:
@@ -258,6 +273,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1421125502c32d04ea304644cd603a17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AttackPose
+--- !u!114 &5194552501880805963
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175370656087914219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5844b535378d2740b4a77229bb83ea5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInteractor
+  radius: 1.4
+  promptSprite: {fileID: 21300000, guid: bcddaf7753e252c429852d89fad2b2aa, type: 3}
+  promptSortingOrder: 50
+  promptScale: 1
 --- !u!1 &7644618548152859302
 GameObject:
   m_ObjectHideFlags: 0

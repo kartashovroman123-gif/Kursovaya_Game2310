@@ -723,43 +723,33 @@ MonoBehaviour:
   m_GameObject: {fileID: 595813776}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ac46bdb2109f2b64a9776aaa9dd5dbee, type: 3}
+  m_Script: {fileID: 11500000, guid: 962238195e2fbf948ad385e58c7e08b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomManager
   hubPrefab: {fileID: 4086361424238798999, guid: 91313ad6fbaf5294283363278f91146d, type: 3}
   rooms:
+  - type: 0
+    prefab: {fileID: 4086361424238798999, guid: 91313ad6fbaf5294283363278f91146d, type: 3}
   - type: 1
-    prefab: {fileID: 8641156735268602584, guid: 349ce4f635cc5cc4eb343f95e80f7472, type: 3}
+    prefab: {fileID: 8641156735268602584, guid: 649f6e09b7cc463459f9b5de9ba9acee, type: 3}
   - type: 2
     prefab: {fileID: 2294188400156516019, guid: 216759079bf583f428ebf85c502d4cb7, type: 3}
-  - type: 4
-    prefab: {fileID: 8870248769944753165, guid: 4e7dca9ca5f461a4aa4e624bfd632edb, type: 3}
   - type: 3
     prefab: {fileID: 2558960859923429170, guid: 3a62010cc23d61c46b2bf7a7f678fa2c, type: 3}
-  - type: 1
+  - type: 4
+    prefab: {fileID: 8870248769944753165, guid: 4e7dca9ca5f461a4aa4e624bfd632edb, type: 3}
+  - type: 5
+    prefab: {fileID: 7041159514431849903, guid: f5b92e81382119c40abdd17484a02e18, type: 3}
+  - type: 6
     prefab: {fileID: 8641156735268602584, guid: 649f6e09b7cc463459f9b5de9ba9acee, type: 3}
   - type: 1
     prefab: {fileID: 8641156735268602584, guid: 9f8d4694e3589654fb619865fd04a065, type: 3}
-  - type: 5
-    prefab: {fileID: 7041159514431849903, guid: f5b92e81382119c40abdd17484a02e18, type: 3}
-  icons:
   - type: 1
-    icon: {fileID: 21300000, guid: ae0adf5bad0535247849fe13df0736eb, type: 3}
-  - type: 2
-    icon: {fileID: 21300000, guid: b0e7de37f38d59d489a8ebfb7fb302a2, type: 3}
-  - type: 3
-    icon: {fileID: 21300000, guid: f3488135cbbfd58469da1bb4e91036ad, type: 3}
-  - type: 4
-    icon: {fileID: 21300000, guid: e44313eed10e36f4f936e362e9fe3aaa, type: 3}
-  - type: 5
-    icon: {fileID: 21300000, guid: bda388186e2cc814daccbe7d4d4b0081, type: 3}
-  - type: 6
-    icon: {fileID: 21300000, guid: fd3205ecd67fdf147b30e6fa77dfcd6a, type: 3}
-  - type: 0
-    icon: {fileID: 21300000, guid: 7622576203ac4834d8dd8df085629799, type: 3}
+    prefab: {fileID: 8641156735268602584, guid: 349ce4f635cc5cc4eb343f95e80f7472, type: 3}
   doorChoices: 0100000001000000020000000300000004000000
   fader: {fileID: 354542646}
-  roomsBeforeBoss: 8
+  doorStyle: {fileID: 11400000, guid: e57b1e96770b65e469148460e64c8578, type: 2}
+  roomsBeforeBoss: 15
   keyDoorChance: 0.35
 --- !u!4 &595813778
 Transform:

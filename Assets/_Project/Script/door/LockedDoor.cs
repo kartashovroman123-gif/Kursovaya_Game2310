@@ -2,82 +2,45 @@ using System.Collections;
 using UnityEngine;
 
 // ЗАПЕРТАЯ ДВЕРЬ (средний уровень: Door -> LockedDoor -> KeyDoor / BossDoor).
-// Не открывается сама, когда комната пройдена. Герой должен подойти вплотную:
-// если условие выполнено (CanUnlock) - дверь отпирается, если нет - дёргается.
-// Запертая дверь подкрашена своим цветом, чтобы её было видно издалека.
-// Триггер двери автоматически чуть увеличивается: стоя у твёрдой двери, герой его касается.
-public abstract class LockedDoor : Door
+// После зачистки комнаты сама НЕ открывается. Герой подходит, над дверью появляется значок клавиши
+// взаимодействия (F) - нажал, и если условие выполнено (CanUnlock), дверь отпирается и открывается.
+public abstract class LockedDoor : Door, IInteractable
 {
-    [Header("Запертая дверь")]
-    [Tooltip("Подкраска двери, пока она заперта")]
-    public Color lockedTint = Color.white;
-    [Tooltip("На сколько клеток увеличить триггер, чтобы герой касался его, стоя у двери")]
-    public float touchPadding = 0.3f;
-    [Tooltip("Пауза после отпирания, прежде чем дверь пустит дальше, сек")]
-    public float enterDelay = 0.35f;
-
-    float unlockedAt;
-    float lastFail = -10f;
-    Vector3 basePos;
-    bool baseSaved;
-
-    protected override void Awake()
-    {
-        base.Awake();
-        BoxCollider2D box = GetComponent<BoxCollider2D>();
-        if (box != null && box.isTrigger) box.size += Vector2.one * touchPadding;
-    }
+    bool unlocking;
 
     // ----- Что решает конкретная дверь -----
-    protected abstract bool CanUnlock();      // можно ли отпереть сейчас
-    protected virtual void OnUnlock() { }     // что происходит при отпирании (потратить ключ и т.п.)
+    protected abstract bool CanUnlock(GameObject player);
+    protected virtual void OnUnlock(GameObject player) { }
+    // Что проигрывается перед открытием (например, падает замок)
+    protected virtual IEnumerator UnlockEffect() { yield break; }
 
-    protected override void OnSetup() { Tint(lockedTint); }
-    protected override void OnSealed() { Tint(Color.white); }
-
-    // Комната пройдена - дверь становится «можно отпереть», но не открывается сама
     public override void OnRoomCleared()
     {
-        RoomCleared = true;
+        RoomCleared = true;          // можно отпирать, но сама не открывается
     }
 
-    protected override void OnPlayerTouch()
+    // ----- Взаимодействие (клавиша F) -----
+
+    public bool CanInteract(GameObject player)
     {
-        if (IsSealed) return;
-        if (IsOpen)
-        {
-            if (Time.time - unlockedAt >= enterDelay) base.OnPlayerTouch();
-            return;
-        }
-        if (!RoomCleared) return;                 // во время боя не открыть
-
-        if (!CanUnlock())
-        {
-            if (Time.time - lastFail > 0.6f) { lastFail = Time.time; StartCoroutine(Wiggle()); }
-            return;
-        }
-
-        OnUnlock();
-        unlockedAt = Time.time;
-        Tint(Color.white);
-        SetOpen(true);
+        return RoomCleared && !IsOpen && !IsOpening && !unlocking && CanUnlock(player);
     }
 
-    void Tint(Color c)
+    public void Interact(GameObject player)
     {
-        if (doorRenderer != null) doorRenderer.color = c;
+        if (!CanInteract(player)) return;
+        unlocking = true;
+        OnUnlock(player);
+        StartCoroutine(UnlockRoutine());
     }
 
-    // «Не получается открыть»: дверь дёргается из стороны в сторону
-    IEnumerator Wiggle()
+    IEnumerator UnlockRoutine()
     {
-        if (!baseSaved) { basePos = transform.localPosition; baseSaved = true; }
-        for (int i = 0; i < 6; i++)
-        {
-            float dx = (i % 2 == 0 ? 1f : -1f) * 0.04f * (1f - i / 6f);
-            transform.localPosition = basePos + new Vector3(dx, 0f, 0f);
-            yield return new WaitForSeconds(0.03f);
-        }
-        transform.localPosition = basePos;
+        yield return UnlockEffect();
+        Open();
     }
+
+    // Где показать значок клавиши: над дверью
+    public Vector3 PromptPosition =>
+        transform.position + Vector3.up * (Side == DoorSide.Down ? 1.2f : 1.75f);
 }
