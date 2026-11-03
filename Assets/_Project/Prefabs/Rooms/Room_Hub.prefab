@@ -61,9 +61,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 298876866817364177}
   - {fileID: 7950471503378823850}
   - {fileID: 2989348305027898808}
-  - {fileID: 7565478556697860839}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4086361424238798999
@@ -80,9 +80,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HubRoom
   floor: {fileID: 5765285519199705203}
   playerSpawn: {fileID: 3506879913127623104}
-  doors:
-  - {fileID: 5809111619022080449}
   allowedNext: 01000000
+  minExits: 1
+  maxExits: 3
   contentPrefab: {fileID: 0}
   contentPoint: {fileID: 0}
 --- !u!1 &3635674271954866325
@@ -1207,6 +1207,16 @@ Tilemap:
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
       m_AllTileFlags: 2147483649
+  - first: {x: -4, y: 13, z: 0}
+    second:
+      serializedVersion: 2
+      m_TileIndex: 0
+      m_TileSpriteIndex: 0
+      m_TileMatrixIndex: 0
+      m_TileColorIndex: 0
+      m_TileObjectToInstantiateIndex: 65535
+      dummyAlignment: 0
+      m_AllTileFlags: 2147483649
   - first: {x: -3, y: 13, z: 0}
     second:
       serializedVersion: 2
@@ -1309,13 +1319,13 @@ Tilemap:
       m_AllTileFlags: 2147483649
   m_AnimatedTiles: {}
   m_TileAssetArray:
-  - m_RefCount: 113
+  - m_RefCount: 114
     m_Data: {fileID: 11400000, guid: a1c05dbb395d85b4ba775befed24e221, type: 2}
   m_TileSpriteArray:
-  - m_RefCount: 113
+  - m_RefCount: 114
     m_Data: {fileID: 698260994677483369, guid: 2904b46d4b831f245af368680ed930d4, type: 3}
   m_TileMatrixArray:
-  - m_RefCount: 113
+  - m_RefCount: 114
     m_Data:
       e00: 1
       e01: 0
@@ -1334,7 +1344,7 @@ Tilemap:
       e32: 0
       e33: 1
   m_TileColorArray:
-  - m_RefCount: 113
+  - m_RefCount: 114
     m_Data: {r: 1, g: 1, b: 1, a: 1}
   m_TileObjectToInstantiateArray: []
   m_AnimationFrameRate: 1
@@ -1524,28 +1534,20 @@ CompositeCollider2D:
     m_ColliderPaths:
     - - X: 70000000
         Y: 140000000
-      - X: -30000000
-        Y: 140000000
-      - X: -30000000
-        Y: 130000000
-      - X: 60000000
-        Y: 130000000
-      - X: 60000000
-        Y: -60000000
-      - X: -130000000
-        Y: -60000000
-      - X: -130000000
-        Y: 130000000
-      - X: -40000000
-        Y: 130000000
-      - X: -40000000
-        Y: 140000000
       - X: -140000000
         Y: 140000000
       - X: -140000000
         Y: -70000000
       - X: 70000000
         Y: -70000000
+    - - X: -130000000
+        Y: -60000000
+      - X: -130000000
+        Y: 130000000
+      - X: 60000000
+        Y: 130000000
+      - X: 60000000
+        Y: -60000000
     - - X: -110000000
         Y: 50000000
       - X: -100000000
@@ -1622,16 +1624,12 @@ CompositeCollider2D:
     m_Paths:
     - - {x: 6.9999704, y: -7}
       - {x: 6.9999704, y: 14}
-      - {x: -3, y: 13.999971}
-      - {x: -2.999971, y: 13}
-      - {x: 6, y: 12.99997}
-      - {x: 5.9999704, y: -6}
-      - {x: -13, y: -5.9999704}
-      - {x: -12.99997, y: 13}
-      - {x: -4, y: 13.00003}
-      - {x: -4.000029, y: 14}
       - {x: -14, y: 13.999971}
       - {x: -13.999971, y: -7}
+    - - {x: 6, y: -5.9999704}
+      - {x: -13, y: -5.9999704}
+      - {x: -12.99997, y: 13}
+      - {x: 6, y: 12.99997}
     - - {x: -11.00003, y: 3}
       - {x: -10.99997, y: 5}
       - {x: -10, y: 4.9999704}
@@ -5616,7 +5614,7 @@ Transform:
   - {fileID: 3506879913127623104}
   m_Father: {fileID: 1519466534846021066}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &6135424743260888597
+--- !u!1001 &2735236257011919538
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -5624,47 +5622,47 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1519466534846021066}
     m_Modifications:
-    - target: {fileID: 1543059805347985342, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 303964972123974564, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_Name
-      value: Door
+      value: Door_Slot_Up
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -3.01
+      value: -2.95
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 13.02
+      value: 12.55
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalRotation.w
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalRotation.x
       value: -0
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalRotation.y
       value: -0
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalRotation.z
       value: -0
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
+    - target: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
@@ -5672,20 +5670,9 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
---- !u!114 &5809111619022080449 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 413051820593829844, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
-  m_PrefabInstance: {fileID: 6135424743260888597}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1405bb250b2822a4194c2609b44f13ac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Door
---- !u!4 &7565478556697860839 stripped
+  m_SourcePrefab: {fileID: 100100000, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
+--- !u!4 &298876866817364177 stripped
 Transform:
-  m_CorrespondingSourceObject: {fileID: 4456473347688662258, guid: 92f51377b943c8b43b6339c518420b80, type: 3}
-  m_PrefabInstance: {fileID: 6135424743260888597}
+  m_CorrespondingSourceObject: {fileID: 2436535423859554915, guid: 5c22216d95760fa4ca36c996f988145c, type: 3}
+  m_PrefabInstance: {fileID: 2735236257011919538}
   m_PrefabAsset: {fileID: 0}

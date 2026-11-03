@@ -1,10 +1,11 @@
 using UnityEngine;
 
-// Сундук-награда (заглушка). Герой касается - сундук открывается и выбрасывает рядом то, что в нём лежит.
+// Сундук-награда (заглушка). Герой подходит, над сундуком появляется значок клавиши (F) - нажал,
+// сундук открывается и выбрасывает рядом то, что в нём лежит.
 // Пока содержимое - любые префабы (например, ключ). Позже сюда добавятся предметы и монеты.
 // Нужен Collider2D с Is Trigger. Если сундук должен быть твёрдым - добавь дочерний объект с обычным коллайдером.
 [RequireComponent(typeof(Collider2D))]
-public class RewardChest : MonoBehaviour
+public class RewardChest : MonoBehaviour, IInteractable
 {
     public SpriteRenderer sr;
     public Sprite closedSprite;
@@ -28,11 +29,12 @@ public class RewardChest : MonoBehaviour
         if (sr != null && closedSprite != null) sr.sprite = closedSprite;
     }
 
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        if (opened || !other.CompareTag("Player")) return;
-        Open();
-    }
+    // ----- Взаимодействие (клавиша F) -----
+    public bool CanInteract(GameObject player) => !opened;
+    public void Interact(GameObject player) { if (!opened) Open(); }
+    [Tooltip("Высота значка клавиши над сундуком, в клетках")]
+    public float promptHeight = 0.8f;
+    public Vector3 PromptPosition => transform.position + Vector3.up * promptHeight;
 
     void Open()
     {

@@ -1,23 +1,44 @@
+using System.Collections;
 using UnityEngine;
 
 // Дверь на ключ (нижний уровень: Door -> LockedDoor -> KeyDoor).
-// Появляется не в каждой комнате (шанс задаётся в RoomManager), иначе запечатана как обычная стена-дверь.
-// Ведёт в сокровищницу (Vault). Отпирается, если у героя есть ключ; ключ тратится.
+// Ведёт в сокровищницу (Vault). На створке висит замок. Появляется, только если у героя есть ключ (решает RoomManager).
+// После зачистки: подойти и нажать F - ключ тратится, замок открывается и падает, дверь открывается.
 public class KeyDoor : LockedDoor
 {
-    void Reset() { lockedTint = new Color(1f, 0.85f, 0.4f); }   // золотистая (при добавлении компонента)
+    SpriteRenderer lockRenderer;
+    Sprite[] lockFrames;
 
-    public override void Configure(DoorPlan plan)
+    protected override void OnInit()
     {
-        if (Random.value < plan.keyDoorChance) Setup(RoomType.Vault, plan.IconFor(RoomType.Vault));
-        else Seal();
+        lockFrames = Style.lockFrames != null ? Style.lockFrames.Get(Side) : null;
+        if (lockFrames == null || lockFrames.Length == 0) return;
+
+        var go = new GameObject("Lock");
+        go.transform.SetParent(transform, false);
+        lockRenderer = go.AddComponent<SpriteRenderer>();
+        lockRenderer.sprite = lockFrames[0];
+        lockRenderer.flipX = Renderer.flipX;
+        lockRenderer.sortingOrder = Renderer.sortingOrder + 1;
+        if (Renderer.sharedMaterial != null) lockRenderer.sharedMaterial = Renderer.sharedMaterial;
     }
 
-    protected override bool CanUnlock() => RunState.Keys > 0;
+    protected override bool CanUnlock(GameObject player) => RunState.Keys > 0;
 
-    protected override void OnUnlock()
+    protected override void OnUnlock(GameObject player)
     {
         RunState.TryUseKey();
-        CameraShake.Kick(Vector2.up * 0.06f);
+        CameraShake.Kick(Side.Inward() * 0.05f);
+    }
+
+    protected override IEnumerator UnlockEffect()
+    {
+        if (lockRenderer == null) yield break;
+        for (int i = 1; i < lockFrames.Length; i++)
+        {
+            lockRenderer.sprite = lockFrames[i];
+            yield return new WaitForSeconds(0.12f);
+        }
+        lockRenderer.enabled = false;
     }
 }
