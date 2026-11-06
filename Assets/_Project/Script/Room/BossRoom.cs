@@ -3,6 +3,7 @@ using UnityEngine;
 // Комната босса (нижний уровень: Room -> CombatRoom -> BossRoom).
 // Всё как в боевой комнате (босс - это враг в точке EnemySpawnPoint), плюс:
 //  - вход всегда снизу, выход всегда один - сверху, и ведёт в хаб (позже - на следующий этаж);
+//  - награда - сундук уровня Boss;
 //  - толчок камеры при входе и после победы;
 //  - здесь не появляется ещё одна дверь к боссу.
 public class BossRoom : CombatRoom
@@ -13,10 +14,11 @@ public class BossRoom : CombatRoom
 
     static readonly RoomType[] afterBoss = { RoomType.Hub };
 
+    public override ChestTier RewardTier => ChestTier.Boss;
     public override DoorSide? ForcedEntrance => DoorSide.Down;
     public override DoorSide? ForcedExit => DoorSide.Up;
     public override bool AllowsBossDoor => false;
-    public override RoomType[] NextChoices(RoomType[] defaults) => afterBoss;
+    public override RoomType[] FixedNext => afterBoss;
 
     protected override void OnEnter()
     {

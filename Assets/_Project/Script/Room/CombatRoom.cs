@@ -1,23 +1,23 @@
 using System.Collections;
 using UnityEngine;
 
-// БОЕВАЯ КОМНАТА (средний уровень: Room -> CombatRoom -> BossRoom).
+// БОЕВАЯ КОМНАТА (средний уровень: Room -> CombatRoom -> EliteRoom / VaultRoom / BossRoom).
 // При входе двери закрыты. Враги появляются в точках EnemySpawnPoint внутри префаба комнаты.
 // Комната сама следит за врагами: когда последний враг уничтожен - двери открываются и появляется награда.
+// Награда - сундук; его уровень (обычный, элитный, хранилище, боссовый) задаёт класс комнаты (RewardTier).
 // Друзьям ничего вызывать не нужно: достаточно, чтобы враг при смерти удалялся (Destroy).
 // Если враг не удаляется, а, например, выключается - пусть вызовет GetComponent<RoomEnemy>().ReportDeath().
 // Пока врагов нет (в точках не стоят префабы), комната проходится клавишей K.
 public class CombatRoom : Room
 {
-    [Header("Награда после зачистки (заглушка)")]
-    [Tooltip("Что появляется, когда комната пройдена (сундук). Можно оставить пустым")]
+    [Header("Награда после зачистки")]
+    [Tooltip("Сундук (префаб с RewardChest), появляется, когда комната пройдена. Можно оставить пустым")]
     public GameObject rewardPrefab;
     [Tooltip("Где. Пусто = центр комнаты")]
     public Transform rewardPoint;
-    [Tooltip("Префаб ключа")]
-    public KeyPickup keyPrefab;
-    [Tooltip("Шанс, что после зачистки выпадет ключ (0..1)")]
-    [Range(0f, 1f)] public float keyChance = 0.3f;
+
+    // Уровень сундука-награды. Потомки меняют: элитная - Elite, за ключом - Vault, босс - Boss
+    public virtual ChestTier RewardTier => ChestTier.Normal;
 
     int alive;          // живых врагов
     int pending;        // точек, где враг ещё не появился
@@ -81,8 +81,8 @@ public class CombatRoom : Room
 
     protected override void OnCleared()
     {
-        Spawn(rewardPrefab, rewardPoint);
-        if (keyPrefab != null && Random.value < keyChance)
-            Spawn(keyPrefab.gameObject, rewardPoint, new Vector2(rewardPrefab != null ? 1f : 0f, 0f));
+        GameObject reward = Spawn(rewardPrefab, rewardPoint);
+        RewardChest chest = reward != null ? reward.GetComponent<RewardChest>() : null;
+        if (chest != null) chest.SetTier(RewardTier);
     }
 }

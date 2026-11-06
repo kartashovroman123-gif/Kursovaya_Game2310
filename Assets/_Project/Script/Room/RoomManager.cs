@@ -8,24 +8,34 @@ using UnityEngine;
 // Живёт всегда одна комната: при переходе старая удаляется, новая создаётся из префаба нужного типа.
 // Двери создаются здесь в местах DoorSlot новой комнаты:
 //   вход - на стороне, противоположной выходу из прошлой комнаты (захлопывается за героем);
-//   выходы - случайные 1-3 из остальных мест, тип каждого случайный (его видно по створке);
-//   дверь на ключ - иногда, только если у героя есть ключ (тогда выходов минимум 2);
+//   выходы - случайные 1-3 из остальных мест, тип каждого виден по створке и выбирается по расписанию:
+//     обычный шаг - боевые и элитные (хотя бы один выход - обычная боевая);
+//       дверь на ключ - иногда, вместо боевой, только если у героя есть ключ (тогда выходов минимум 2);
+//     особый шаг (каждая Special Every-я комната) - магазин / прокачка / предмет / элитная,
+//       без повторов и хотя бы один выход небоевой;
 //   когда пройдено Rooms Before Boss комнат - единственный выход, к боссу.
-// Забег: хаб -> комнаты -> босс -> хаб.
+// Номер комнаты = сколько раз герой вошёл в дверь в этом забеге (RunState.RoomsPassed).
+// Забег: хаб -> (из хаба всегда обычная боевая) -> комнаты -> босс -> хаб.
 public class RoomManager : MonoBehaviour
 {
     public static RoomManager Instance;
 
     public Room hubPrefab;
     public RoomEntry[] rooms;
-    [Tooltip("Из чего выбираются типы выходов. Повторы увеличивают шанс")]
-    public RoomType[] doorChoices = { RoomType.Combat, RoomType.Combat, RoomType.Shop, RoomType.Upgrade, RoomType.Item };
     [Tooltip("Затемнение экрана при переходе (необязательно)")]
     public ScreenFader fader;
 
     [Header("Двери")]
     [Tooltip("Внешний вид всех дверей (ассет Door Style)")]
     public DoorStyle doorStyle;
+
+    [Header("Расписание выходов")]
+    [Tooltip("Каждая какая комната особая (магазин, прокачка, предмет). 3 = комнаты 3, 6, 9... 0 = особых нет")]
+    [Min(0)] public int specialEvery = 3;
+    [Tooltip("Обычный шаг: из чего выбираются выходы (кроме одной гарантированной боевой). Повторы увеличивают шанс")]
+    public RoomType[] normalChoices = { RoomType.Combat, RoomType.Combat, RoomType.Elite };
+    [Tooltip("Особый шаг: из чего выбираются выходы. Без повторов, хотя бы один небоевой")]
+    public RoomType[] specialChoices = { RoomType.Shop, RoomType.Upgrade, RoomType.Item, RoomType.Elite };
 
     [Header("Забег")]
     [Tooltip("После скольких комнат (не считая хаба) появляется проход к боссу")]
@@ -40,6 +50,7 @@ public class RoomManager : MonoBehaviour
     DoorSlot entranceSlot;
 
     public Room Current => current;
+    public bool Busy => busy;                  // идёт переход между комнатами
 
     void Awake() { Instance = this; }
 
@@ -56,14 +67,15 @@ public class RoomManager : MonoBehaviour
         busy = false;
     }
 
-    // Вызывает открытая дверь, когда герой в неё зашёл
-    public void GoToNext(RoomType type, DoorSide exitSide)
+    // Вызывает открытая дверь, когда герой нажал F. true - переход начался
+    public bool GoToNext(RoomType type, DoorSide exitSide)
     {
-        if (busy) return;
+        if (busy) return false;
         Room prefab = PickPrefab(type);
-        if (prefab == null) { Debug.LogWarning("Нет префаба комнаты типа " + type); return; }
+        if (prefab == null) { Debug.LogWarning("Нет префаба комнаты типа " + type); return false; }
         lastExit = exitSide;
         StartCoroutine(Transition(prefab));
+        return true;
     }
 
     IEnumerator Transition(Room prefab)
@@ -129,14 +141,12 @@ public class RoomManager : MonoBehaviour
             }
         }
 
-        RoomType[] pool = current.NextChoices(doorChoices);
-
         // 2. Комната с одним заданным выходом (босс: выход сверху)
         if (current.ForcedExit.HasValue)
         {
             DoorSlot exit = current.FindSlot(current.ForcedExit.Value);
             if (exit == null || exit == entranceSlot) exit = free.Count > 0 ? free[0] : null;
-            if (exit != null) AddDoor<Door>(exit, RandomType(pool));
+            if (exit != null) AddDoor<Door>(exit, RandomType(current.FixedNext ?? normalChoices));
             return;
         }
 
@@ -150,19 +160,91 @@ public class RoomManager : MonoBehaviour
             return;
         }
 
-        // 4. Обычные выходы: 1-3, иногда один из них - дверь на ключ (тогда выходов минимум 2)
+        // 4. Обычные выходы: 1-3, типы по расписанию
         int min = Mathf.Clamp(current.minExits, 1, 3);
         int max = Mathf.Clamp(current.maxExits, min, 3);
         int count = Random.Range(min, max + 1);
-        bool keyDoor = RunState.Keys > 0 && free.Count >= 2 && Random.value < keyDoorChance;
-        if (keyDoor) count = Mathf.Max(count, 2);
-        count = Mathf.Min(count, free.Count);
 
+        List<RoomType> types;
+        int nextRoom = RunState.RoomsPassed + 1;            // номер комнаты, в которую ведут эти двери
+        if (current.FixedNext != null)                      // хаб: только боевая
+        {
+            types = new List<RoomType>();
+            for (int i = 0; i < count; i++) types.Add(RandomType(current.FixedNext));
+        }
+        else if (IsSpecialRoom(nextRoom))
+        {
+            types = PickSpecial(count);
+        }
+        else
+        {
+            bool keyDoor = RunState.Keys > 0 && free.Count >= 2 && HasPrefab(RoomType.Vault)
+                           && Random.value < keyDoorChance;
+            if (keyDoor) count = Mathf.Max(count, 2);
+            types = PickNormal(count, keyDoor);
+        }
+
+        count = Mathf.Min(types.Count, free.Count);
         for (int i = 0; i < count; i++)
         {
-            if (keyDoor && i == 0) AddDoor<KeyDoor>(free[i], RoomType.Vault);
-            else AddDoor<Door>(free[i], RandomType(pool));
+            if (types[i] == RoomType.Vault) AddDoor<KeyDoor>(free[i], RoomType.Vault);
+            else AddDoor<Door>(free[i], types[i]);
         }
+    }
+
+    // ---------- Расписание ----------
+
+    // Особая ли комната с этим номером (3, 6, 9... при Special Every = 3)
+    public bool IsSpecialRoom(int roomNumber) => specialEvery > 0 && roomNumber % specialEvery == 0;
+
+    // Боевые типы (за ними бой). Остальные - безопасные (магазин, прокачка, предмет)
+    static bool IsCombatType(RoomType t) =>
+        t == RoomType.Combat || t == RoomType.Elite || t == RoomType.Vault || t == RoomType.Boss;
+
+    // Обычный шаг: первая дверь - всегда обычная боевая, затем (если выпала) дверь на ключ, остальные случайно
+    List<RoomType> PickNormal(int count, bool keyDoor)
+    {
+        var result = new List<RoomType> { RoomType.Combat };
+        if (keyDoor) result.Add(RoomType.Vault);
+        var pool = Available(normalChoices, false);
+        while (result.Count < count)
+            result.Add(pool.Count > 0 ? pool[Random.Range(0, pool.Count)] : RoomType.Combat);
+        return result;
+    }
+
+    // Особый шаг: без повторов, первая дверь - небоевая (чтобы магазин и т.п. нельзя было пропустить)
+    List<RoomType> PickSpecial(int count)
+    {
+        var pool = Available(specialChoices, true);
+        var result = new List<RoomType>();
+        var safe = pool.FindAll(t => !IsCombatType(t));
+        if (safe.Count > 0)
+        {
+            RoomType first = safe[Random.Range(0, safe.Count)];
+            result.Add(first);
+            pool.Remove(first);
+        }
+        Shuffle(pool);
+        for (int i = 0; i < pool.Count && result.Count < count; i++) result.Add(pool[i]);
+        if (result.Count == 0) result.Add(RoomType.Combat);     // список пуст - чтобы не застрять без выхода
+        return result;
+    }
+
+    // Только типы, для которых есть префаб комнаты (иначе дверь вела бы в никуда). distinct - без повторов
+    List<RoomType> Available(RoomType[] choices, bool distinct)
+    {
+        var list = new List<RoomType>();
+        if (choices == null) return list;
+        foreach (RoomType t in choices)
+            if (HasPrefab(t) && (!distinct || !list.Contains(t))) list.Add(t);
+        return list;
+    }
+
+    bool HasPrefab(RoomType type)
+    {
+        if (rooms == null) return false;
+        foreach (var e in rooms) if (e != null && e.type == type && e.prefab != null) return true;
+        return false;
     }
 
     // Создать дверь нужного класса в месте slot (внутри комнаты - удалится вместе с ней)

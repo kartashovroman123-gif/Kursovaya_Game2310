@@ -731,7 +731,7 @@ MonoBehaviour:
   - type: 0
     prefab: {fileID: 4086361424238798999, guid: 91313ad6fbaf5294283363278f91146d, type: 3}
   - type: 1
-    prefab: {fileID: 8641156735268602584, guid: 649f6e09b7cc463459f9b5de9ba9acee, type: 3}
+    prefab: {fileID: 8641156735268602584, guid: 349ce4f635cc5cc4eb343f95e80f7472, type: 3}
   - type: 2
     prefab: {fileID: 2294188400156516019, guid: 216759079bf583f428ebf85c502d4cb7, type: 3}
   - type: 3
@@ -741,14 +741,14 @@ MonoBehaviour:
   - type: 5
     prefab: {fileID: 7041159514431849903, guid: f5b92e81382119c40abdd17484a02e18, type: 3}
   - type: 6
-    prefab: {fileID: 8641156735268602584, guid: 649f6e09b7cc463459f9b5de9ba9acee, type: 3}
-  - type: 1
-    prefab: {fileID: 8641156735268602584, guid: 9f8d4694e3589654fb619865fd04a065, type: 3}
-  - type: 1
-    prefab: {fileID: 8641156735268602584, guid: 349ce4f635cc5cc4eb343f95e80f7472, type: 3}
-  doorChoices: 0100000001000000020000000300000004000000
+    prefab: {fileID: 3305917098438210164, guid: a4d8277173154db4b98058445b84ff2f, type: 3}
+  - type: 7
+    prefab: {fileID: 1971167564648155621, guid: f12989cd8984a044893bc8498e22fdce, type: 3}
   fader: {fileID: 354542646}
   doorStyle: {fileID: 11400000, guid: e57b1e96770b65e469148460e64c8578, type: 2}
+  specialEvery: 4
+  normalChoices: 010000000100000007000000
+  specialChoices: 02000000030000000400000007000000
   roomsBeforeBoss: 15
   keyDoorChance: 0.35
 --- !u!4 &595813778

@@ -1,20 +1,7 @@
-using UnityEngine;
-
-// Сокровищница: особая комната за дверью на ключ. Врагов нет, стоят несколько сундуков в ряд.
-public class VaultRoom : SafeRoom
+// КОМНАТА ЗА ДВЕРЬЮ НА КЛЮЧ (нижний уровень: Room -> CombatRoom -> VaultRoom).
+// Теперь это боевая комната: сначала бой (враги - в префабе, возможно мини-босс), потом награда -
+// сундук уровня Vault. Дверь на ключ появляется только вместо обычной боевой двери (решает RoomManager).
+public class VaultRoom : CombatRoom
 {
-    [Header("Сундуки сокровищницы")]
-    public RewardChest chestPrefab;
-    public int chestCount = 2;
-    [Tooltip("Расстояние между сундуками, в клетках")]
-    public float chestSpacing = 1.5f;
-
-    protected override void SpawnContents()
-    {
-        base.SpawnContents();
-        if (chestPrefab == null) return;
-        float start = -(chestCount - 1) * chestSpacing * 0.5f;    // ряд по центру
-        for (int i = 0; i < chestCount; i++)
-            Spawn(chestPrefab.gameObject, contentPoint, new Vector2(start + i * chestSpacing, 0f));
-    }
+    public override ChestTier RewardTier => ChestTier.Vault;
 }
