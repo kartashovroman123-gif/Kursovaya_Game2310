@@ -5,11 +5,12 @@ using UnityEngine;
 // Дверь не стена: она стоит на полу у стены, не мешает ходить и не имеет твёрдых коллизий.
 // Создаётся сама (RoomManager) в месте DoorSlot при входе в комнату - на сцену и в префабы её ставить не нужно.
 // Пока комната не пройдена - закрыта. После зачистки проигрывает анимацию открытия.
-// Открытая: герой заходит в зону у её основания - переход в комнату того типа, что нарисован на створке.
+// Открытая: герой подходит, над дверью появляется значок клавиши (F) - нажал, переход в комнату
+// того типа, что нарисован на створке. Просто зайти в дверь недостаточно.
 // Потомки меняют: какие кадры показывать (GetFrames), что делать при зачистке (OnRoomCleared)
-// и при касании героя (OnPlayerTouch).
+// и что происходит по клавише (CanInteract / Interact).
 [RequireComponent(typeof(SpriteRenderer))]
-public class Door : MonoBehaviour
+public class Door : MonoBehaviour, IInteractable
 {
     public RoomType NextType { get; private set; }
     public DoorSide Side { get; private set; }
@@ -20,6 +21,7 @@ public class Door : MonoBehaviour
     protected SpriteRenderer Renderer { get; private set; }
     protected Sprite[] Frames { get; private set; }
     protected BoxCollider2D Trigger { get; private set; }
+    bool entering;                                     // уже нажали F, идёт переход
 
     // Вызывает RoomManager сразу после создания
     public void Init(DoorSide side, RoomType nextType, DoorStyle style)
@@ -58,12 +60,28 @@ public class Door : MonoBehaviour
         Open();
     }
 
-    // Герой стоит в зоне прохода: если дверь открыта - переход
-    protected virtual void OnPlayerTouch()
+    // ----- Взаимодействие (клавиша F) -----
+
+    // Обычная дверь: можно войти, когда она открыта и не идёт другой переход
+    public virtual bool CanInteract(GameObject player)
     {
-        if (IsOpen && RoomManager.Instance != null)
-            RoomManager.Instance.GoToNext(NextType, Side);
+        return IsOpen && !entering && RoomManager.Instance != null && !RoomManager.Instance.Busy;
     }
+
+    public virtual void Interact(GameObject player)
+    {
+        if (CanInteract(player)) EnterNext();
+    }
+
+    // Переход в следующую комнату
+    protected void EnterNext()
+    {
+        entering = RoomManager.Instance != null && RoomManager.Instance.GoToNext(NextType, Side);
+    }
+
+    // Где показать значок клавиши: над дверью
+    public virtual Vector3 PromptPosition =>
+        transform.position + Vector3.up * (Side == DoorSide.Down ? 1.2f : 1.75f);
 
     // ----- Анимация -----
 
@@ -100,7 +118,8 @@ public class Door : MonoBehaviour
 
     protected int LastFrame => Frames != null && Frames.Length > 0 ? Frames.Length - 1 : 0;
 
-    // ----- Зона прохода у основания двери (триггер, не твёрдая) -----
+    // ----- Зона взаимодействия у основания двери (триггер, не твёрдая) -----
+    // По ней PlayerInteractor находит дверь рядом с героем.
 
     void SetupTrigger()
     {
@@ -124,7 +143,4 @@ public class Door : MonoBehaviour
                 break;
         }
     }
-
-    void OnTriggerEnter2D(Collider2D other) { if (other.CompareTag("Player")) OnPlayerTouch(); }
-    void OnTriggerStay2D(Collider2D other) { if (other.CompareTag("Player")) OnPlayerTouch(); }
 }

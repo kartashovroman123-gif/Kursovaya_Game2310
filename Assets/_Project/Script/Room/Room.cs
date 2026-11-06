@@ -7,7 +7,7 @@ using UnityEngine.Tilemaps;
 // Чем комнаты отличаются, решают потомки:
 //   OnEnter   - что происходит, когда герой вошёл (безопасная комната сразу открывает двери, боевая создаёт врагов);
 //   OnCleared - что происходит, когда комната пройдена (боевая выдаёт награду);
-//   HasEntrance / ForcedEntrance / ForcedExit / NextChoices / AllowsBossDoor - как устроены двери этой комнаты.
+//   HasEntrance / ForcedEntrance / ForcedExit / FixedNext / AllowsBossDoor - как устроены двери этой комнаты.
 // Сам по себе Room не вешается (abstract) - на префаб ставится один из потомков: HubRoom, CombatRoom, ShopRoom...
 public abstract class Room : MonoBehaviour
 {
@@ -18,8 +18,6 @@ public abstract class Room : MonoBehaviour
     public Transform playerSpawn;
 
     [Header("Выходы")]
-    [Tooltip("Куда могут вести выходы. Если пусто, берётся общий список менеджера")]
-    public RoomType[] allowedNext;
     [Tooltip("Сколько выходов минимум (не считая входа)")]
     [Range(1, 3)] public int minExits = 1;
     [Tooltip("Сколько выходов максимум (не считая входа)")]
@@ -49,11 +47,9 @@ public abstract class Room : MonoBehaviour
     // Может ли здесь появиться дверь к боссу
     public virtual bool AllowsBossDoor => true;
 
-    // Из каких типов выбираются выходы
-    public virtual RoomType[] NextChoices(RoomType[] defaults)
-    {
-        return allowedNext != null && allowedNext.Length > 0 ? allowedNext : defaults;
-    }
+    // Куда ведут выходы, если не по общему расписанию менеджера
+    // (хаб - только в боевую, босс - в хаб). null = по расписанию
+    public virtual RoomType[] FixedNext => null;
 
     // Найти место для двери с нужной стороны
     public DoorSlot FindSlot(DoorSide side)

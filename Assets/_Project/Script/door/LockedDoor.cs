@@ -4,7 +4,8 @@ using UnityEngine;
 // ЗАПЕРТАЯ ДВЕРЬ (средний уровень: Door -> LockedDoor -> KeyDoor / BossDoor).
 // После зачистки комнаты сама НЕ открывается. Герой подходит, над дверью появляется значок клавиши
 // взаимодействия (F) - нажал, и если условие выполнено (CanUnlock), дверь отпирается и открывается.
-public abstract class LockedDoor : Door, IInteractable
+// Чтобы войти, F нажимается ещё раз (как у любой открытой двери).
+public abstract class LockedDoor : Door
 {
     bool unlocking;
 
@@ -21,13 +22,16 @@ public abstract class LockedDoor : Door, IInteractable
 
     // ----- Взаимодействие (клавиша F) -----
 
-    public bool CanInteract(GameObject player)
+    // Открыта - как обычная дверь (вход). Закрыта - можно ли отпереть
+    public override bool CanInteract(GameObject player)
     {
-        return RoomCleared && !IsOpen && !IsOpening && !unlocking && CanUnlock(player);
+        if (IsOpen) return base.CanInteract(player);
+        return RoomCleared && !IsOpening && !unlocking && CanUnlock(player);
     }
 
-    public void Interact(GameObject player)
+    public override void Interact(GameObject player)
     {
+        if (IsOpen) { base.Interact(player); return; }     // второе нажатие - вход
         if (!CanInteract(player)) return;
         unlocking = true;
         OnUnlock(player);
@@ -39,8 +43,4 @@ public abstract class LockedDoor : Door, IInteractable
         yield return UnlockEffect();
         Open();
     }
-
-    // Где показать значок клавиши: над дверью
-    public Vector3 PromptPosition =>
-        transform.position + Vector3.up * (Side == DoorSide.Down ? 1.2f : 1.75f);
 }

@@ -25,5 +25,5 @@ public class EntranceDoor : Door
     }
 
     public override void OnRoomCleared() { }               // не открывается
-    protected override void OnPlayerTouch() { }
+    public override bool CanInteract(GameObject player) => false;   // назад дороги нет
 }
