@@ -18,6 +18,8 @@ public class ChestTierSettings
 // Уровень ставит комната, когда создаёт сундук (CombatRoom.RewardTier -> SetTier),
 // а если сундук поставлен в комнату руками - берётся поле Tier.
 // Герой подходит, над сундуком появляется значок клавиши (F) - нажал, сундук открывается и выбрасывает содержимое.
+// Сундук может быть ЗАПЕРТ (второй сундук элитной комнаты): тогда над ним висит замок, а открыть его
+// можно, только если у героя есть ключ (ключ тратится).
 // Нужен Collider2D с Is Trigger. Если сундук должен быть твёрдым - добавь дочерний объект с обычным коллайдером.
 [RequireComponent(typeof(Collider2D))]
 public class RewardChest : MonoBehaviour, IInteractable
@@ -43,9 +45,38 @@ public class RewardChest : MonoBehaviour, IInteractable
     [Tooltip("Высота значка клавиши над сундуком, в клетках")]
     public float promptHeight = 0.8f;
 
+    [Header("Замок (запертый сундук)")]
+    [Tooltip("Картинка замка над запертым сундуком (Chest_Lock)")]
+    public Sprite lockSprite;
+    [Tooltip("Где висит замок относительно сундука, в клетках")]
+    public Vector2 lockOffset = new Vector2(0f, 0.15f);
+
     bool opened;
+    bool needsKey;
+    SpriteRenderer lockIcon;
 
     public ChestTier Tier => tier;
+    public bool NeedsKey => needsKey;
+
+    // Запереть / отпереть (вызывает комната сразу после создания)
+    public void SetNeedsKey(bool value)
+    {
+        needsKey = value;
+        if (needsKey && lockIcon == null && lockSprite != null)
+        {
+            var go = new GameObject("Lock");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = lockOffset;
+            lockIcon = go.AddComponent<SpriteRenderer>();
+            lockIcon.sprite = lockSprite;
+            if (sr != null)
+            {
+                lockIcon.sortingLayerID = sr.sortingLayerID;
+                lockIcon.sortingOrder = sr.sortingOrder + 1;
+            }
+        }
+        if (lockIcon != null) lockIcon.gameObject.SetActive(needsKey);
+    }
 
     void Awake()
     {
@@ -80,8 +111,19 @@ public class RewardChest : MonoBehaviour, IInteractable
     }
 
     // ----- Взаимодействие (клавиша F) -----
-    public bool CanInteract(GameObject player) => !opened;
-    public void Interact(GameObject player) { if (!opened) Open(); }
+    // Запертый - только если есть ключ (без ключа значок F не появится, замок остаётся висеть)
+    public bool CanInteract(GameObject player) => !opened && (!needsKey || RunState.Keys > 0);
+
+    public void Interact(GameObject player)
+    {
+        if (!CanInteract(player)) return;
+        if (needsKey)
+        {
+            if (!RunState.TryUseKey()) return;
+            SetNeedsKey(false);
+        }
+        Open();
+    }
     public Vector3 PromptPosition => transform.position + Vector3.up * promptHeight;
 
     void Open()

@@ -1,29 +1,29 @@
 using System;
 
-// Состояние текущего забега: ключи и сколько комнат пройдено после хаба.
+// Состояние текущего забега: номер уровня и ключи.
 // Статический класс: на сцену ставить не нужно, данные доступны из любого скрипта (RunState.Keys).
-// Сбрасывается, когда герой попадает в хаб (HubRoom).
+// Сбрасывается в начале забега (RoomManager, уровень 1).
 public static class RunState
 {
     public static int Keys { get; private set; }
-    public static int RoomsPassed { get; private set; }
+    public static int Level { get; private set; }
 
     // Срабатывает при любом изменении (для интерфейса)
     public static event Action Changed;
-    // Начался новый забег (герой в хабе): то, что живёт один забег, очищается (метательное оружие и т.п.)
+    // Начался новый забег: то, что живёт один забег, очищается (метательное оружие и т.п.)
     public static event Action RunReset;
 
     public static void ResetRun()
     {
         Keys = 0;
-        RoomsPassed = 0;
+        Level = 0;
         RunReset?.Invoke();
         Changed?.Invoke();
     }
 
-    public static void RoomPassed()
+    public static void SetLevel(int level)
     {
-        RoomsPassed++;
+        Level = level;
         Changed?.Invoke();
     }
 

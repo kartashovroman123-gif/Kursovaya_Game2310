@@ -2,12 +2,14 @@ using System.Collections;
 using UnityEngine;
 
 // БОЕВАЯ КОМНАТА (средний уровень: Room -> CombatRoom -> EliteRoom / VaultRoom / BossRoom).
-// При входе двери закрыты. Враги появляются в точках EnemySpawnPoint внутри префаба комнаты.
-// Комната сама следит за врагами: когда последний враг уничтожен - двери открываются и появляется награда.
-// Награда - сундук; его уровень (обычный, элитный, хранилище, боссовый) задаёт класс комнаты (RewardTier).
+// При первом входе решётки на проходах падают, враги появляются в точках EnemySpawnPoint внутри префаба.
+// Комната сама следит за врагами: когда последний враг уничтожен - решётки поднимаются и появляется сундук.
+// Если вернуться в уже зачищенную комнату - ничего не происходит, проходы открыты.
+// Уровень сундука (обычный, элитный, хранилище, боссовый) задаёт класс комнаты (RewardTier).
 // Друзьям ничего вызывать не нужно: достаточно, чтобы враг при смерти удалялся (Destroy).
 // Если враг не удаляется, а, например, выключается - пусть вызовет GetComponent<RoomEnemy>().ReportDeath().
-// Пока врагов нет (в точках не стоят префабы), комната проходится клавишей K.
+// Пока врагов нет (в точках не стоят префабы), комната проходится клавишей K
+// (или сама, если у RoomManager включено Auto Clear Empty Rooms).
 public class CombatRoom : Room
 {
     [Header("Награда после зачистки")]
@@ -23,8 +25,9 @@ public class CombatRoom : Room
     int pending;        // точек, где враг ещё не появился
     bool spawnedAny;
 
-    protected override void OnEnter()
+    protected override void OnFirstEnter()
     {
+        LockExits();
         alive = 0;
         pending = 0;
         spawnedAny = false;
@@ -33,6 +36,13 @@ public class CombatRoom : Room
             pending++;
             StartCoroutine(SpawnAt(point));
         }
+        if (pending == 0) StartCoroutine(AutoClearIfEmpty());
+    }
+
+    // Ушли из комнаты посреди появления врагов (так быть не должно, но на всякий случай) - не зависнуть
+    protected override void OnReenter()
+    {
+        if (!IsCleared && pending > 0) CheckCleared();
     }
 
     IEnumerator SpawnAt(EnemySpawnPoint point)
@@ -49,6 +59,15 @@ public class CombatRoom : Room
             RegisterEnemy(enemy);
         }
         CheckCleared();
+        if (pending == 0 && !spawnedAny) StartCoroutine(AutoClearIfEmpty());
+    }
+
+    // Для теста: комната без врагов проходится сама через секунду (если включено у RoomManager)
+    IEnumerator AutoClearIfEmpty()
+    {
+        if (RoomManager.Instance == null || !RoomManager.Instance.autoClearEmptyRooms) yield break;
+        yield return new WaitForSeconds(1f);
+        if (!spawnedAny) Clear();
     }
 
     // ---------- Учёт врагов ----------
@@ -81,8 +100,19 @@ public class CombatRoom : Room
 
     protected override void OnCleared()
     {
-        GameObject reward = Spawn(rewardPrefab, rewardPoint);
+        SpawnChest(RewardTier, Vector2.zero, false);
+    }
+
+    // Поставить сундук нужного уровня. needsKey - открывается только ключом
+    protected RewardChest SpawnChest(ChestTier tier, Vector2 offset, bool needsKey)
+    {
+        GameObject reward = Spawn(rewardPrefab, rewardPoint, offset);
         RewardChest chest = reward != null ? reward.GetComponent<RewardChest>() : null;
-        if (chest != null) chest.SetTier(RewardTier);
+        if (chest != null)
+        {
+            chest.SetTier(tier);
+            chest.SetNeedsKey(needsKey);
+        }
+        return chest;
     }
 }

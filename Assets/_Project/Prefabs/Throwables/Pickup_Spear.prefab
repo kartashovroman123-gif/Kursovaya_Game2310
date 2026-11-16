@@ -83,7 +83,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThrowablePickup
   item: {fileID: 11400000, guid: c1ea6df35c4d89f498096cbf99a7067e, type: 2}
-  amount: 2
+  amount: 1
   sr: {fileID: 5340685497409075026}
   bobHeight: 0.05
   bobSpeed: 3
