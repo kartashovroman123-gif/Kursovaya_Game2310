@@ -177,3 +177,5 @@ MonoBehaviour:
   keyPrefab: {fileID: 0}
   dropDistance: 0.8
   promptHeight: 0.8
+  lockSprite: {fileID: 21300000, guid: fd92642e34db41c418ff86e51abd1f5c, type: 3}
+  lockOffset: {x: 0, y: 0.15}

@@ -3,32 +3,33 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 
 // ОБЩАЯ ОСНОВА ЛЮБОЙ КОМНАТЫ (верх дерева: Room -> SafeRoom / CombatRoom -> конкретные комнаты).
-// Одинаково у всех комнат: пол (границы камеры), места для дверей (DoorSlot), «пройдена ли комната».
+// Все комнаты уровня создаются сразу (RoomManager, по схеме уровня), включена только та, где герой.
+// Комнаты не удаляются до конца уровня, поэтому всё, что в них произошло (зачистка, открытые сундуки,
+// брошенное оружие), сохраняется само - в пройденные комнаты можно возвращаться.
+// Одинаково у всех: пол (границы камеры), 4 места прохода (DoorSlot), выходы, «пройдена ли комната».
 // Чем комнаты отличаются, решают потомки:
-//   OnEnter   - что происходит, когда герой вошёл (безопасная комната сразу открывает двери, боевая создаёт врагов);
-//   OnCleared - что происходит, когда комната пройдена (боевая выдаёт награду);
-//   HasEntrance / ForcedEntrance / ForcedExit / FixedNext / AllowsBossDoor - как устроены двери этой комнаты.
-// Сам по себе Room не вешается (abstract) - на префаб ставится один из потомков: HubRoom, CombatRoom, ShopRoom...
+//   OnFirstEnter - что происходит при ПЕРВОМ входе (безопасная - открывается, боевая - закрывается и зовёт врагов);
+//   OnReenter    - при возвращении (по умолчанию ничего);
+//   OnCleared    - когда комната пройдена (боевая выдаёт награду).
+// Сам по себе Room не вешается (abstract) - на префаб ставится потомок: StartRoom, CombatRoom, ShopRoom...
 public abstract class Room : MonoBehaviour
 {
     [Header("Комната")]
     [Tooltip("Тайлмап пола (для границ камеры и центра комнаты)")]
     public Tilemap floor;
-    [Tooltip("Где появляется герой, если у комнаты нет входной двери (хаб)")]
+    [Tooltip("Где появляется герой, если пришёл не через проход (начало уровня)")]
     public Transform playerSpawn;
 
-    [Header("Выходы")]
-    [Tooltip("Сколько выходов минимум (не считая входа)")]
-    [Range(1, 3)] public int minExits = 1;
-    [Tooltip("Сколько выходов максимум (не считая входа)")]
-    [Range(1, 3)] public int maxExits = 3;
-
-    // Места для дверей (пустые объекты с DoorSlot внутри префаба) - находятся сами
+    // Места проходов (пустые объекты с DoorSlot внутри префаба) - находятся сами
     public DoorSlot[] Slots { get; private set; }
-    // Двери, созданные в этой комнате
-    public List<Door> Doors { get; } = new List<Door>();
+    // Выходы, созданные в этой комнате (проходы, позже - дверь уровня)
+    public List<RoomExit> Exits { get; } = new List<RoomExit>();
+    // Место комнаты на схеме уровня
+    public RoomNode Node { get; private set; }
 
     public bool IsCleared { get; private set; }
+    public bool Visited { get; private set; }
+    // Уровень удаляется целиком (переход на следующий) - враги удаляются вместе с ним, это не «смерть»
     public bool IsUnloading { get; private set; }
 
     protected virtual void Awake()
@@ -36,22 +37,10 @@ public abstract class Room : MonoBehaviour
         Slots = GetComponentsInChildren<DoorSlot>(true);
     }
 
-    // ---------- Устройство дверей (переопределяют потомки) ----------
+    // ---------- Вызывает RoomManager ----------
 
-    // Есть ли входная дверь (у хаба нет - герой появляется в Player Spawn)
-    public virtual bool HasEntrance => true;
-    // Вход всегда с этой стороны (null = напротив выхода из прошлой комнаты)
-    public virtual DoorSide? ForcedEntrance => null;
-    // Выход всегда один и с этой стороны (null = случайные 1-3 выхода)
-    public virtual DoorSide? ForcedExit => null;
-    // Может ли здесь появиться дверь к боссу
-    public virtual bool AllowsBossDoor => true;
+    public void Setup(RoomNode node) => Node = node;
 
-    // Куда ведут выходы, если не по общему расписанию менеджера
-    // (хаб - только в боевую, босс - в хаб). null = по расписанию
-    public virtual RoomType[] FixedNext => null;
-
-    // Найти место для двери с нужной стороны
     public DoorSlot FindSlot(DoorSide side)
     {
         foreach (DoorSlot s in Slots)
@@ -59,15 +48,25 @@ public abstract class Room : MonoBehaviour
         return null;
     }
 
-    // ---------- Вызывает RoomManager ----------
-
-    // Комната только что создана (до дверей). Обычная комната засчитывается в забег
-    public virtual void OnLoaded() => RunState.RoomPassed();
-
+    // Герой вошёл в комнату
     public void Enter()
     {
-        IsCleared = false;
-        OnEnter();
+        if (!Visited)
+        {
+            Visited = true;
+            OnFirstEnter();
+        }
+        else OnReenter();
+    }
+
+    // Герой ушёл из комнаты (она сейчас выключится)
+    public virtual void OnExit() { }
+
+    // Перед удалением уровня: остановить всё, что ещё идёт
+    public virtual void PrepareUnload()
+    {
+        IsUnloading = true;
+        StopAllCoroutines();
     }
 
     // Комната пройдена: выходы открываются, потомок делает своё (награда и т.п.)
@@ -75,22 +74,23 @@ public abstract class Room : MonoBehaviour
     {
         if (IsCleared || IsUnloading) return;
         IsCleared = true;
-        foreach (Door d in Doors)
-            if (d != null) d.OnRoomCleared();
+        foreach (RoomExit e in Exits)
+            if (e != null) e.OnRoomCleared();
         OnCleared();
-    }
-
-    // Перед удалением комнаты (переход в другую): остановить всё, что ещё идёт
-    public virtual void PrepareUnload()
-    {
-        IsUnloading = true;
-        StopAllCoroutines();
     }
 
     // ---------- Для потомков ----------
 
-    protected abstract void OnEnter();
+    protected abstract void OnFirstEnter();
+    protected virtual void OnReenter() { }
     protected virtual void OnCleared() { }
+
+    // Закрыть все выходы (боевая комната при входе)
+    protected void LockExits()
+    {
+        foreach (RoomExit e in Exits)
+            if (e != null) e.SetLocked(true, true);
+    }
 
     // Центр комнаты по полу (если пола нет - позиция комнаты)
     public Vector3 Center
@@ -103,7 +103,7 @@ public abstract class Room : MonoBehaviour
         }
     }
 
-    // Создать объект внутри комнаты (удалится вместе с ней). point пустой - в центре комнаты
+    // Создать объект внутри комнаты (останется в ней). point пустой - в центре комнаты
     protected GameObject Spawn(GameObject prefab, Transform point, Vector2 offset = default)
     {
         if (prefab == null) return null;

@@ -1,8 +1,9 @@
 using UnityEngine;
 
-// БЕЗОПАСНАЯ КОМНАТА (средний уровень: Room -> SafeRoom -> HubRoom / ShopRoom / ItemRoom / UpgradeRoom / VaultRoom).
-// Врагов нет: двери открываются сразу при входе. В комнате может стоять «содержимое»
+// БЕЗОПАСНАЯ КОМНАТА (средний уровень: Room -> SafeRoom -> StartRoom / ShopRoom / ItemRoom / UpgradeRoom / ExitRoom / HubRoom).
+// Врагов нет: проходы открыты сразу. В комнате может стоять «содержимое»
 // (торговец, пьедестал с предметом, алтарь улучшений) - пока это просто префаб-заглушка.
+// Содержимое появляется один раз - при первом входе - и остаётся, если вернуться.
 public abstract class SafeRoom : Room
 {
     [Header("Что стоит в комнате (заглушка)")]
@@ -11,7 +12,7 @@ public abstract class SafeRoom : Room
     [Tooltip("Где поставить. Пусто = центр комнаты")]
     public Transform contentPoint;
 
-    protected override void OnEnter()
+    protected override void OnFirstEnter()
     {
         Clear();
         SpawnContents();

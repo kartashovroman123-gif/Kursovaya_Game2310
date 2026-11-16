@@ -17,7 +17,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: fa84e7cf6e9143743be0c4cacc1cbab4, type: 3}
   prefab: {fileID: 7778049444707637915, guid: f47258fc939de1046ac20d5a6221302c, type: 3}
   maxHealth: 6
-  moveSpeed: 5
+  moveSpeed: 8
   invulnerabilityTime: 0.6
   lightAttack: {fileID: 11400000, guid: 42defe187cb2bbd43b072849c06fa2a4, type: 2}
   heavyAttack: {fileID: 11400000, guid: dc988ab33b08cdb47a5685a020deccc9, type: 2}
