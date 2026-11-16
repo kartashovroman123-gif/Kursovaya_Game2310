@@ -10,11 +10,14 @@ public static class RunState
 
     // Срабатывает при любом изменении (для интерфейса)
     public static event Action Changed;
+    // Начался новый забег (герой в хабе): то, что живёт один забег, очищается (метательное оружие и т.п.)
+    public static event Action RunReset;
 
     public static void ResetRun()
     {
         Keys = 0;
         RoomsPassed = 0;
+        RunReset?.Invoke();
         Changed?.Invoke();
     }
 

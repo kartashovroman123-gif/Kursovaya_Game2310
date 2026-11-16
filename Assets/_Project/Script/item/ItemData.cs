@@ -6,12 +6,10 @@ public enum ItemKind { Active, Passive }
 // Предмет. Активный занимает слот активного предмета и срабатывает по кнопке,
 // пассивный занимает слот пассивного и просто меняет параметры.
 // Оба могут менять параметры героя через модификаторы.
+// Имя, описание и иконка - в общем родителе GameItemData (общем для всех предметов, включая метательные).
 [CreateAssetMenu(fileName = "NewItem", menuName = "Game/Item")]
-public class ItemData : ScriptableObject
+public class ItemData : GameItemData
 {
-    public string displayName;
-    [TextArea] public string description;
-    public Sprite icon;
     public ItemKind kind = ItemKind.Passive;
 
     [Tooltip("Изменения параметров, пока предмет в слоте")]
