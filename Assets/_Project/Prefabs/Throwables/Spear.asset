@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 60407a88c3bbb1c419e6e8d734204162, type: 3}
+  m_Name: Spear
+  m_EditorClassIdentifier: Assembly-CSharp::SpearThrowable
+  displayName: Spear
+  description: 
+  icon: {fileID: 21300000, guid: 6ec28604ff87e484dad8bafbf1da3560, type: 3}
+  maxCount: 8
+  pickupPrefab: {fileID: 255658118034219233, guid: 0e596eda9cf444544bc2e56705d007f6, type: 3}
+  damage: 25
+  throwCooldown: 0.5
+  throwKick: 0.04
+  aimColor: {r: 1, g: 0.85, b: 0.6, a: 0.85}
+  aimLength: 6
+  projectileSprite: {fileID: 21300000, guid: 918c19a030278b941ad94f4b0f6580d4, type: 3}
+  speed: 20
+  lifetime: 1.5
+  radius: 0.15
+  hitLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  hitEffect: {fileID: 0}
+  aimLineSprite: {fileID: 21300000, guid: 4c161cfc63529c3478936b320f011cd8, type: 3}
+  aimTipSprite: {fileID: 21300000, guid: fb80c01f53c329a46af5cad6b8cc4a5e, type: 3}
+  aimSpacing: 0.45
+  aimScale: 1
+  aimStart: 0.5
+  knockback: 6
+  hitStop: 0.05
+  stuckTime: 0.4
+  aimImpactSprite: {fileID: 21300000, guid: 963dd5dc6ce3a634da024e95aa5b300e, type: 3}

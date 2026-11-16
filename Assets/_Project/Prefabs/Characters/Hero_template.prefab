@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 5742592923552075678}
   - component: {fileID: 8260108251871994903}
   - component: {fileID: 5194552501880805963}
+  - component: {fileID: 8449977061744192823}
   m_Layer: 0
   m_Name: Hero_template
   m_TagString: Player
@@ -289,6 +290,24 @@ MonoBehaviour:
   promptSprite: {fileID: 21300000, guid: bcddaf7753e252c429852d89fad2b2aa, type: 3}
   promptSortingOrder: 50
   promptScale: 1
+--- !u!114 &8449977061744192823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 175370656087914219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ca4cf763dfc9924b9c6304557f35ae7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerThrower
+  holdThreshold: 0.15
+  extraCancelKeys: 71000000
+  throwBuffer: 0.2
+  aimOrderOffset: -1
+  debugThrowable: {fileID: 11400000, guid: b688746c27688dd4e84aceb2af3cc4ba, type: 2}
+  debugAmount: 8
 --- !u!1 &7644618548152859302
 GameObject:
   m_ObjectHideFlags: 0

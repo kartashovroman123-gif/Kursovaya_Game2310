@@ -105,7 +105,7 @@ public class PlayerStats : MonoBehaviour
                 s = new Stat(0f);
                 stats[m.stat] = s;
             }
-            s.Add(source, m.percent);
+            s.Add(source, m.value, m.mode);
         }
         OnStatsChanged?.Invoke();
     }

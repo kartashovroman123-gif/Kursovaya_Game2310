@@ -1,13 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Параметр во время игры: базовое значение + список процентных модификаторов.
-// Итог = база * (1 + сумма процентов / 100). Не бывает меньше нуля.
+// Параметр во время игры: базовое значение + модификаторы двух видов - числа и проценты.
+// Итог = (база + сумма чисел) * (1 + сумма процентов / 100). Не бывает меньше нуля.
 public class Stat
 {
     public float BaseValue { get; private set; }
 
-    readonly List<(object source, float percent)> modifiers = new List<(object source, float percent)>();
+    readonly List<(object source, float amount, ModifierMode mode)> modifiers =
+        new List<(object source, float amount, ModifierMode mode)>();
 
     public Stat(float baseValue)
     {
@@ -19,21 +20,25 @@ public class Stat
         BaseValue = value;
     }
 
-    public float TotalPercent
+    public float TotalPercent => Sum(ModifierMode.Percent);
+    public float TotalFlat => Sum(ModifierMode.Flat);
+
+    float Sum(ModifierMode mode)
     {
-        get
-        {
-            float sum = 0f;
-            foreach (var m in modifiers) sum += m.percent;
-            return sum;
-        }
+        float sum = 0f;
+        foreach (var m in modifiers)
+            if (m.mode == mode) sum += m.amount;
+        return sum;
     }
 
-    public float Value => Mathf.Max(0f, BaseValue * (1f + TotalPercent / 100f));
+    public float Value => Mathf.Max(0f, (BaseValue + TotalFlat) * (1f + TotalPercent / 100f));
 
-    public void Add(object source, float percent)
+    // Процентный модификатор (как раньше)
+    public void Add(object source, float percent) => Add(source, percent, ModifierMode.Percent);
+
+    public void Add(object source, float amount, ModifierMode mode)
     {
-        modifiers.Add((source, percent));
+        modifiers.Add((source, amount, mode));
     }
 
     // Убрать всё, что дал этот источник (предмет, усиление и т.д.)

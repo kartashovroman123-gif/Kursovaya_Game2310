@@ -48,8 +48,8 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 1
   spriteExtrude: 1
-  spriteMeshType: 1
-  alignment: 0
+  spriteMeshType: 0
+  alignment: 7
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 128
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Icon_Ring_0
+      name: Door_Boss_Up_2_0
       rect:
         serializedVersion: 2
-        x: 0
+        x: 13
         y: 0
-        width: 64
-        height: 64
+        width: 167
+        height: 192
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 6367361c26fbbada0800000000000000
-      internalID: -5932437653258275274
+      spriteID: 41afadf79fa975b40800000000000000
+      internalID: 5428978272201013780
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Icon_Ring_0: -5932437653258275274
+      Door_Boss_Up_2_0: 5428978272201013780
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
